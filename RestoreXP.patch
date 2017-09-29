@@ -1,25 +1,42 @@
-From 766da98c4a4337d197f2726b0461ee42ac025ca0 Mon Sep 17 00:00:00 2001
+From 622aa92e7d44b26cea0b2036c84b7e5791fd5ba6 Mon Sep 17 00:00:00 2001
 From: fedor <fedor@mail.ru>
-Date: Thu, 31 Aug 2017 17:17:47 +0300
+Date: Thu, 28 Sep 2017 03:46:51 +0300
 Subject: [PATCH] Restore winxp support main
 
 ---
+ browser/app/Makefile.in                            |  6 --
  browser/app/nsBrowserApp.cpp                       | 59 +++++++++++++---
+ browser/app/splash.rc                              |  2 -
  browser/base/content/aboutDialog.xul               |  7 +-
- .../branding/unofficial/pref/palemoon-branding.js  |  2 +-
+ .../branding/unofficial/pref/palemoon-branding.js  |  5 +-
  browser/installer/Makefile.in                      |  3 +
- browser/installer/package-manifest.in              |  4 ++
+ browser/installer/windows/nsis/defines.nsi.in      |  4 +-
  configure.in                                       | 82 +++++++++++++++++++++-
- gfx/angle/BUILD.gn                                 |  2 +-
  gfx/angle/Makefile.in                              |  4 ++
- gfx/angle/src/libGLESv2.gypi                       |  4 +-
- gfx/angle/src/libGLESv2/moz.build                  |  2 +-
  gfx/gl/GLLibraryEGL.cpp                            |  5 ++
  gfx/gl/moz.build                                   |  2 +
  gfx/thebes/gfxWindowsPlatform.cpp                  |  1 +
+ toolkit/mozapps/installer/windows/nsis/common.nsh  |  3 +-
  xpcom/ds/TimeStamp_windows.cpp                     | 52 ++++++++++++--
- 14 files changed, 204 insertions(+), 25 deletions(-)
+ 14 files changed, 202 insertions(+), 33 deletions(-)
 
+diff --git a/browser/app/Makefile.in b/browser/app/Makefile.in
+index 580fcb1..b60615c 100644
+--- a/browser/app/Makefile.in
++++ b/browser/app/Makefile.in
+@@ -33,12 +33,6 @@ NSDISTMODE = copy
+ 
+ include $(topsrcdir)/config/config.mk
+ 
+-ifeq ($(OS_ARCH),WINNT)
+-# Rebuild firefox.exe if the manifest changes - it's included by splash.rc.
+-# (this dependency should really be just for firefox.exe, not other targets)
+-EXTRA_DEPS += $(PROGRAM).manifest
+-endif
+-
+ PROGRAMS_DEST = $(DIST)/bin
+ 
+ include $(topsrcdir)/config/rules.mk
 diff --git a/browser/app/nsBrowserApp.cpp b/browser/app/nsBrowserApp.cpp
 index f9645b0..03b183e 100644
 --- a/browser/app/nsBrowserApp.cpp
@@ -104,8 +121,21 @@ index f9645b0..03b183e 100644
  #elif defined(XP_MACOSX)
    return mach_absolute_time();
  #elif defined(HAVE_CLOCK_MONOTONIC)
+diff --git a/browser/app/splash.rc b/browser/app/splash.rc
+index 539c342..a5d418e 100644
+--- a/browser/app/splash.rc
++++ b/browser/app/splash.rc
+@@ -6,8 +6,6 @@
+ #include <windows.h>
+ #include "nsNativeAppSupportWin.h"
+ 
+-1 24 "palemoon.exe.manifest"
+-
+ IDI_APPICON ICON FIREFOX_ICO
+ IDI_DOCUMENT ICON DOCUMENT_ICO
+ IDI_APPLICATION ICON FIREFOX_ICO
 diff --git a/browser/base/content/aboutDialog.xul b/browser/base/content/aboutDialog.xul
-index 1ba8f06..3b0c981 100644
+index 1ba8f06..7b417d4 100644
 --- a/browser/base/content/aboutDialog.xul
 +++ b/browser/base/content/aboutDialog.xul
 @@ -88,14 +88,13 @@
@@ -122,20 +152,23 @@ index 1ba8f06..3b0c981 100644
          <description class="text-blurb">
 -          If you wish to contribute, please consider helping out by providing support to other users on the <label class="text-link" href="https://forum.palemoon.org/">Pale Moon forum</label>
 -          or getting involved in our development by tackling some of the issues found in our GitHub issue tracker.
-+          There are no set a webpage yet.
++          There is a <label class="text-link" href="https://github.com/Feodor2/Mypal">page on gihub</label>
          </description>    
          </vbox>
        </vbox>
 diff --git a/browser/branding/unofficial/pref/palemoon-branding.js b/browser/branding/unofficial/pref/palemoon-branding.js
-index ae70063..ea87144 100644
+index ae70063..29426cb 100644
 --- a/browser/branding/unofficial/pref/palemoon-branding.js
 +++ b/browser/branding/unofficial/pref/palemoon-branding.js
-@@ -4,4 +4,4 @@
+@@ -4,4 +4,7 @@
  #include ../../shared/pref/uaoverrides.inc
  
  pref("startup.homepage_override_url","http://www.palemoon.org/unofficial.shtml");
 -pref("app.releaseNotesURL", "http://www.palemoon.org/releasenotes.shtml");
 +pref("app.releaseNotesURL", "https://github.com/Feodor2/MyPal");
++
++// Enable Firefox compatmode by default.
++pref("general.useragent.compatMode", 2);
 diff --git a/browser/installer/Makefile.in b/browser/installer/Makefile.in
 index 7ba8ae9..03a811c 100644
 --- a/browser/installer/Makefile.in
@@ -150,23 +183,25 @@ index 7ba8ae9..03a811c 100644
  endif
  
  DEFINES += -DMOZ_CHILD_PROCESS_NAME=$(MOZ_CHILD_PROCESS_NAME)
-diff --git a/browser/installer/package-manifest.in b/browser/installer/package-manifest.in
-index 75d3e1c..edac736 100644
---- a/browser/installer/package-manifest.in
-+++ b/browser/installer/package-manifest.in
-@@ -653,6 +653,10 @@
- @BINPATH@/@MOZ_D3DCOMPILER_VISTA_DLL@
+diff --git a/browser/installer/windows/nsis/defines.nsi.in b/browser/installer/windows/nsis/defines.nsi.in
+index ad171a5..f2d95b6 100644
+--- a/browser/installer/windows/nsis/defines.nsi.in
++++ b/browser/installer/windows/nsis/defines.nsi.in
+@@ -39,10 +39,10 @@
+ #ifdef HAVE_64BIT_BUILD
+ !define HAVE_64BIT_BUILD
+ !define ARCH "x64"
+-!define MinSupportedVer "Microsoft Windows Vista x64"
++!define MinSupportedVer "Microsoft Windows XP x64"
+ #else
+ !define ARCH "x86"
+-!define MinSupportedVer "Microsoft Windows Vista"
++!define MinSupportedVer "Microsoft Windows XP"
  #endif
  
-+#ifdef MOZ_D3DCOMPILER_XP_DLL
-+@BINPATH@/@MOZ_D3DCOMPILER_XP_DLL@
-+#endif
-+
- #endif # MOZ_ANGLE_RENDERER
- 
- ; [Browser Chrome Files]
+ # File details shared by both the installer and uninstaller
 diff --git a/configure.in b/configure.in
-index ee98030..bb7c450 100644
+index 9103c1c..ba6b896 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -424,7 +424,7 @@ dnl ========================================================
@@ -187,7 +222,7 @@ index ee98030..bb7c450 100644
          WIN32_CONSOLE_EXE_LDFLAGS=-SUBSYSTEM:CONSOLE,$WIN32_SUBSYSTEM_VERSION
          WIN32_GUI_EXE_LDFLAGS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
          DSO_LDOPTS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
-@@ -5714,6 +5714,9 @@ MOZ_D3D_CPU_SUFFIX=
+@@ -5713,6 +5713,9 @@ MOZ_D3D_CPU_SUFFIX=
  MOZ_HAS_WINSDK_WITH_D3D=
  MOZ_D3DCOMPILER_VISTA_DLL=
  MOZ_D3DCOMPILER_VISTA_DLL_PATH=
@@ -197,7 +232,7 @@ index ee98030..bb7c450 100644
  
  case "$target_os" in
  *mingw*)
-@@ -5738,6 +5741,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
+@@ -5737,6 +5740,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
    AC_DEFINE(MOZ_WEBGL_CONFORMANT)
  fi
  
@@ -206,7 +241,7 @@ index ee98030..bb7c450 100644
  dnl ========================================================
  dnl D3D compiler DLL
  dnl ========================================================
-@@ -5786,20 +5791,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
+@@ -5785,20 +5790,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
      MOZ_CHECK_HEADER(d3d10.h, MOZ_HAS_WINSDK_WITH_D3D=1)
    fi
  
@@ -292,7 +327,7 @@ index ee98030..bb7c450 100644
    fi
  fi
  
-@@ -7670,6 +7740,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
+@@ -7637,6 +7707,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
  MOZ_ENABLE_SKIA=1,
  MOZ_ENABLE_SKIA=)
  
@@ -304,7 +339,7 @@ index ee98030..bb7c450 100644
  MOZ_ARG_DISABLE_BOOL(skia-gpu,
  [  --disable-skia-gpu  Disable use of Skia-GPU],
  MOZ_DISABLE_SKIA_GPU=1,
-@@ -8186,6 +8261,9 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
+@@ -8153,6 +8228,9 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
  AC_SUBST(MOZ_HAS_WINSDK_WITH_D3D)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL_PATH)
@@ -314,19 +349,6 @@ index ee98030..bb7c450 100644
  
  AC_SUBST(MOZ_ANDROID_HISTORY)
  AC_SUBST(MOZ_WEBSMS_BACKEND)
-diff --git a/gfx/angle/BUILD.gn b/gfx/angle/BUILD.gn
-index 2ee3e8e..bdd1e07 100644
---- a/gfx/angle/BUILD.gn
-+++ b/gfx/angle/BUILD.gn
-@@ -157,7 +157,7 @@ if (is_win) {
- 
-     defines = [
-       "ANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES={ " +
--        "\"d3dcompiler_46.dll\", \"d3dcompiler_47.dll\" }",
-+        "\"d3dcompiler_47.dll\", \"d3dcompiler_46.dll\", \"d3dcompiler_43.dll\" }",
-       "GL_APICALL=",
-       "GL_GLEXT_PROTOTYPES=",
-       "EGLAPI=",
 diff --git a/gfx/angle/Makefile.in b/gfx/angle/Makefile.in
 index 0394b35..da63a55 100644
 --- a/gfx/angle/Makefile.in
@@ -342,41 +364,6 @@ index 0394b35..da63a55 100644
  endif
  
  include $(topsrcdir)/config/rules.mk
-diff --git a/gfx/angle/src/libGLESv2.gypi b/gfx/angle/src/libGLESv2.gypi
-index b9901cd..f733c00 100644
---- a/gfx/angle/src/libGLESv2.gypi
-+++ b/gfx/angle/src/libGLESv2.gypi
-@@ -341,7 +341,7 @@
-                 'GL_APICALL=',
-                 'GL_GLEXT_PROTOTYPES=',
-                 'EGLAPI=',
--                'ANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES={ "d3dcompiler_46.dll", "d3dcompiler_47.dll" }',
-+                'ANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES={ "d3dcompiler_46.dll", "d3dcompiler_47.dll", "d3dcompiler_43.dll" }',
-             ],
-             'direct_dependent_settings':
-             {
-@@ -356,7 +356,7 @@
-                     'GL_APICALL=',
-                     'GL_GLEXT_PROTOTYPES=',
-                     'EGLAPI=',
--                    'ANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES={ "d3dcompiler_46.dll", "d3dcompiler_47.dll" }',
-+                    'ANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES={ "d3dcompiler_46.dll", "d3dcompiler_47.dll", "d3dcompiler_43.dll" }',
-                 ],
-             },
-             'conditions':
-diff --git a/gfx/angle/src/libGLESv2/moz.build b/gfx/angle/src/libGLESv2/moz.build
-index 9b488c0..152865a 100644
---- a/gfx/angle/src/libGLESv2/moz.build
-+++ b/gfx/angle/src/libGLESv2/moz.build
-@@ -229,7 +229,7 @@ GoannaSharedLibrary('libGLESv2', linkage=None)
- RCFILE = SRCDIR + '/libGLESv2.rc'
- DEFFILE = SRCDIR + '/libGLESv2.def'
- 
--SOURCES['renderer/d3d/HLSLCompiler.cpp'].flags += ['-DANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES=\'{ TEXT("d3dcompiler_47.dll"), TEXT("d3dcompiler_46.dll") }\'']
-+SOURCES['renderer/d3d/HLSLCompiler.cpp'].flags += ['-DANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES=\'{ TEXT("d3dcompiler_47.dll"), TEXT("d3dcompiler_46.dll"), TEXT("d3dcompiler_43.dll")  }\'']
- 
- if CONFIG['MOZ_HAS_WINSDK_WITH_D3D']:
-     SOURCES['renderer/d3d/d3d11/SwapChain11.cpp'].flags += ['-DANGLE_RESOURCE_SHARE_TYPE=D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX']
 diff --git a/gfx/gl/GLLibraryEGL.cpp b/gfx/gl/GLLibraryEGL.cpp
 index 461dcd0..0607dd4 100644
 --- a/gfx/gl/GLLibraryEGL.cpp
@@ -418,6 +405,27 @@ index 8380303..642fa47 100644
  
    RefPtr<IDXGIAdapter1> adapter;
  
+diff --git a/toolkit/mozapps/installer/windows/nsis/common.nsh b/toolkit/mozapps/installer/windows/nsis/common.nsh
+index 9778ce0..1e2735a 100644
+--- a/toolkit/mozapps/installer/windows/nsis/common.nsh
++++ b/toolkit/mozapps/installer/windows/nsis/common.nsh
+@@ -5091,7 +5091,7 @@
+ 
+       !ifdef HAVE_64BIT_BUILD
+         ${Unless} ${RunningX64}
+-        ${OrUnless} ${AtLeastWinVista}
++        ${OrUnless} ${AtLeastWinXP}
+           MessageBox MB_OK|MB_ICONSTOP "$R9" IDOK
+           ; Nothing initialized so no need to call OnEndCommon
+           Quit
+@@ -5123,7 +5123,6 @@
+           ${If} ${Errors}
+           ${OrIf} "$R8" == "3"
+           ${OrIf} "$R8" == "4"
+-          ${OrIf} "$R8" == "5"
+             MessageBox MB_OK|MB_ICONSTOP "$R9" IDOK
+             ; Nothing initialized so no need to call OnEndCommon
+             Quit
 diff --git a/xpcom/ds/TimeStamp_windows.cpp b/xpcom/ds/TimeStamp_windows.cpp
 index 2f7cc6b..b48784b 100644
 --- a/xpcom/ds/TimeStamp_windows.cpp
