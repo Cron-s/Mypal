@@ -1,0 +1,639 @@
+From e8ef884766f43f01c4e3d1f1dfcc6299a5e0a5af Mon Sep 17 00:00:00 2001
+From: fedor <fedor@mail.ru>
+Date: Thu, 28 Sep 2017 04:35:21 +0300
+Subject: [PATCH] Add ffmpeg winxp support
+
+---
+ configure.in                                       |   2 +-
+ dom/media/fmp4/MP4Decoder.cpp                      |  12 ++-
+ dom/media/platforms/PlatformDecoderModule.cpp      |   6 +-
+ dom/media/platforms/ffmpeg/FFmpegAudioDecoder.cpp  |   9 +-
+ dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp   |  57 +++++++++++-
+ dom/media/platforms/ffmpeg/FFmpegH264Decoder.cpp   |  36 +++++++-
+ dom/media/platforms/ffmpeg/FFmpegLibs.h            |   3 +-
+ dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp | 100 ++++++++++++++++++++-
+ dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h   |  42 ++++++++-
+ dom/media/platforms/moz.build                      |  12 ++-
+ 10 files changed, 250 insertions(+), 29 deletions(-)
+
+diff --git a/configure.in b/configure.in
+index ba6b896..1302293 100644
+--- a/configure.in
++++ b/configure.in
+@@ -5262,7 +5262,7 @@ dnl ========================================================
+ dnl FFmpeg H264/AAC Decoding Support
+ dnl ========================================================
+ case "$OS_TARGET" in
+-WINNT|Darwin|Android)
++Darwin|Android)
+     ;;
+ *)
+     MOZ_FFMPEG=1
+diff --git a/dom/media/fmp4/MP4Decoder.cpp b/dom/media/fmp4/MP4Decoder.cpp
+index 41628e4..d0edd9d 100644
+--- a/dom/media/fmp4/MP4Decoder.cpp
++++ b/dom/media/fmp4/MP4Decoder.cpp
+@@ -53,15 +53,11 @@ IsWhitelistedH264Codec(const nsAString& aCodec)
+   }
+ 
+ #ifdef XP_WIN
+-  if (!Preferences::GetBool("media.use-blank-decoder") &&
+-      !WMFDecoderModule::HasH264()) {
+-     return false;
+-   }
+ 
+   // Disable 4k video on windows vista since it performs poorly.
+-  if (!IsWin7OrLater() &&
++  /* if (!IsWin7OrLater() &&
+       level >= H264_LEVEL_5) {
+     return false;
+-  }
++  }*/
+ #endif
+ 
+@@ -229,10 +229,10 @@ HavePlatformMPEGDecoders()
+ {
+   return Preferences::GetBool("media.use-blank-decoder") ||
+ #ifdef XP_WIN
+          // We have H.264/AAC platform decoders on Windows Vista and up.
++         IsFFmpegAvailable() ||
+          IsVistaOrLater() ||
+ #endif
+          IsAndroidAvailable() ||
+-         IsFFmpegAvailable() ||
+          IsAppleAvailable() ||
+          IsGonkMP4DecoderAvailable() ||
+diff --git a/dom/media/platforms/PlatformDecoderModule.cpp b/dom/media/platforms/PlatformDecoderModule.cpp
+index fbe22dd..0b4eec4 100644
+--- a/dom/media/platforms/PlatformDecoderModule.cpp
++++ b/dom/media/platforms/PlatformDecoderModule.cpp
+@@ -25,4 +25,5 @@
+ #include "mozilla/Preferences.h"
++#include "mozilla/WindowsVersion.h"
+ #include "SharedThreadPool.h"
+ #include "MediaTaskQueue.h"
+ 
+@@ -79,9 +80,6 @@ PlatformDecoderModule::Init()
+ #ifdef MOZ_APPLEMEDIA
+   AppleDecoderModule::Init();
+ #endif
+-#ifdef MOZ_FFMPEG
+-  FFmpegRuntimeLinker::Link();
+-#endif
+ }
+ 
+ /* static */
+@@ -113,8 +111,10 @@ PlatformDecoderModule::CreatePDM()
+     return CreateBlankDecoderModule();
+   }
+ #ifdef XP_WIN
++  if(IsVistaOrLater()&&!Preferences::GetBool("media.ffmpeg.enabled", false)){
+   nsRefPtr<PlatformDecoderModule> m(new WMFDecoderModule());
+   return m.forget();
++  }
+ #endif
+ #ifdef MOZ_FFMPEG
+   nsRefPtr<PlatformDecoderModule> mffmpeg = FFmpegRuntimeLinker::CreateDecoderModule();
+diff --git a/dom/media/platforms/ffmpeg/FFmpegAudioDecoder.cpp b/dom/media/platforms/ffmpeg/FFmpegAudioDecoder.cpp
+index 104951e..6c0b2c5 100644
+--- a/dom/media/platforms/ffmpeg/FFmpegAudioDecoder.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegAudioDecoder.cpp
+@@ -14,6 +14,10 @@
+ namespace mozilla
+ {
+ 
++static int (*avcodec_decode_audio4)(AVCodecContext*,AVFrame*,
++                         int*,const AVPacket*) = nullptr;
++static void (*av_init_packet1)(AVPacket*) = nullptr;
++
+ FFmpegAudioDecoder<LIBAV_VER>::FFmpegAudioDecoder(
+   FlushableMediaTaskQueue* aTaskQueue, MediaDataDecoderCallback* aCallback,
+   const AudioInfo& aConfig)
+@@ -32,6 +36,9 @@ FFmpegAudioDecoder<LIBAV_VER>::Init()
+   nsresult rv = FFmpegDataDecoder::Init();
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
++  avcodec_decode_audio4 = (decltype(avcodec_decode_audio4))FFmpegRuntimeLinker::avc_ptr[_decode_audio4];
++  av_init_packet1 = (decltype(av_init_packet1))FFmpegRuntimeLinker::avc_ptr[_init_packet];
++
+   return NS_OK;
+ }
+ 
+@@ -101,7 +108,7 @@ void
+ FFmpegAudioDecoder<LIBAV_VER>::DecodePacket(MediaRawData* aSample)
+ {
+   AVPacket packet;
+-  av_init_packet(&packet);
++  av_init_packet1(&packet);
+ 
+   packet.data = const_cast<uint8_t*>(aSample->Data());
+   packet.size = aSample->Size();
+diff --git a/dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp b/dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp
+index 1786080..6b89758 100644
+--- a/dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp
+@@ -5,7 +5,10 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include <string.h>
++#if defined(XP_WIN)
++#else
+ #include <unistd.h>
++#endif
+ 
+ #include "MediaTaskQueue.h"
+ #include "FFmpegLog.h"
+@@ -48,7 +51,13 @@ FFmpegDataDecoder<LIBAV_VER>::Init()
+ 
+   StaticMutexAutoLock mon(sMonitor);
+ 
+-  if (!(mCodecContext = avcodec_alloc_context3(codec))) {
++  if (!(mCodecContext = 
++#if defined(XP_WIN)
++       reinterpret_cast<AVCodecContext*(*)(const AVCodec*)>(FFmpegRuntimeLinker::avc_ptr[_alloc_context3])(codec)
++#else
++       avcodec_alloc_context3(codec)
++#endif
++      )) {
+     NS_WARNING("Couldn't init ffmpeg context");
+     return NS_ERROR_FAILURE;
+   }
+@@ -71,10 +80,21 @@ FFmpegDataDecoder<LIBAV_VER>::Init()
+     mCodecContext->flags |= CODEC_FLAG_EMU_EDGE;
+   }
+ 
+-  if (avcodec_open2(mCodecContext, codec, nullptr) < 0) {
++  if (
++#if defined(XP_WIN)
++      reinterpret_cast<int(*)(AVCodecContext*,const AVCodec*,AVDictionary**)>(FFmpegRuntimeLinker::avc_ptr[_open2])(mCodecContext, codec, nullptr)
++#else
++      avcodec_open2(mCodecContext, codec, nullptr)
++#endif
++     < 0) {
+     NS_WARNING("Couldn't initialise ffmpeg decoder");
++#if defined(XP_WIN)
++    reinterpret_cast<int(*)(AVCodecContext*)>(FFmpegRuntimeLinker::avc_ptr[_close])(mCodecContext);
++    reinterpret_cast<void(*)(void*)>(FFmpegRuntimeLinker::avc_ptr[_freep])(&mCodecContext);
++#else
+     avcodec_close(mCodecContext);
+     av_freep(&mCodecContext);
++#endif
+     return NS_ERROR_FAILURE;
+   }
+ 
+@@ -96,7 +116,11 @@ FFmpegDataDecoder<LIBAV_VER>::Flush()
+ {
+   mTaskQueue->Flush();
+   if (mCodecContext) {
++#if defined(XP_WIN)
++    reinterpret_cast<void(*)(AVCodecContext*)>(FFmpegRuntimeLinker::avc_ptr[_flush_buffers])(mCodecContext);
++#else
+     avcodec_flush_buffers(mCodecContext);
++#endif
+   }
+   return NS_OK;
+ }
+@@ -107,6 +131,11 @@ FFmpegDataDecoder<LIBAV_VER>::Shutdown()
+   StaticMutexAutoLock mon(sMonitor);
+ 
+   if (sFFmpegInitDone && mCodecContext) {
++#if defined(XP_WIN)
++    reinterpret_cast<int(*)(AVCodecContext*)>(FFmpegRuntimeLinker::avc_ptr[_close])(mCodecContext);
++    reinterpret_cast<void(*)(void*)>(FFmpegRuntimeLinker::avc_ptr[_freep])(&mCodecContext);
++    reinterpret_cast<void(*)(AVFrame**)>(FFmpegRuntimeLinker::avc_ptr[_frame_free])(&mFrame);
++#else
+     avcodec_close(mCodecContext);
+     av_freep(&mCodecContext);
+ #if LIBAVCODEC_VERSION_MAJOR >= 55
+@@ -116,6 +145,7 @@ FFmpegDataDecoder<LIBAV_VER>::Shutdown()
+ #else
+     av_freep(&mFrame);
+ #endif
++#endif
+   }
+   return NS_OK;
+ }
+@@ -125,9 +155,18 @@ FFmpegDataDecoder<LIBAV_VER>::PrepareFrame()
+ {
+ #if LIBAVCODEC_VERSION_MAJOR >= 55
+   if (mFrame) {
++#if defined(XP_WIN)
++    reinterpret_cast<void(*)(AVFrame*)>(FFmpegRuntimeLinker::avc_ptr[_frame_unref])(mFrame);
++#else
+     av_frame_unref(mFrame);
++#endif
+   } else {
+-    mFrame = av_frame_alloc();
++    mFrame = 
++#if defined(XP_WIN)
++        reinterpret_cast<AVFrame*(*)()>(FFmpegRuntimeLinker::avc_ptr[_frame_alloc])();
++#else
++        av_frame_alloc();
++#endif
+   }
+ #elif LIBAVCODEC_VERSION_MAJOR == 54
+   if (mFrame) {
+@@ -147,13 +186,25 @@ FFmpegDataDecoder<LIBAV_VER>::FindAVCodec(AVCodecID aCodec)
+ {
+   StaticMutexAutoLock mon(sMonitor);
+   if (!sFFmpegInitDone) {
++#if defined(XP_WIN)
++    reinterpret_cast<void(*)()>(FFmpegRuntimeLinker::avc_ptr[_register_all])();
++#else
+     avcodec_register_all();
++#endif
+ #ifdef DEBUG
++#if defined(XP_WIN)
++    reinterpret_cast<void(*)(int)>(FFmpegRuntimeLinker::avc_ptr[_log_set_level])(AV_LOG_DEBUG);
++#else
+     av_log_set_level(AV_LOG_DEBUG);
+ #endif
++#endif
+     sFFmpegInitDone = true;
+   }
++#if defined(XP_WIN)
++  return reinterpret_cast<AVCodec*(*)(enum AVCodecID)>(FFmpegRuntimeLinker::avc_ptr[_find_decoder])(aCodec);
++#else
+   return avcodec_find_decoder(aCodec);
++#endif
+ }
+ 
+ } // namespace mozilla
+diff --git a/dom/media/platforms/ffmpeg/FFmpegH264Decoder.cpp b/dom/media/platforms/ffmpeg/FFmpegH264Decoder.cpp
+index c4efc0f..aa5b797 100644
+--- a/dom/media/platforms/ffmpeg/FFmpegH264Decoder.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegH264Decoder.cpp
+@@ -8,6 +8,7 @@
+ #include "nsThreadUtils.h"
+ #include "nsAutoPtr.h"
+ #include "ImageContainer.h"
++#include "FFmpegRuntimeLinker.h"
+ 
+ #include "MediaInfo.h"
+ 
+@@ -36,6 +37,13 @@ namespace mozilla
+  * For now, we just look for YUV420P, YUVJ420P and YUV444 as those are the only
+  * non-HW accelerated format supported by FFmpeg's H.264 and VP9 decoder.
+  */
++
++#if defined(XP_WIN)
++static int (*avcodec_decode_video2)(AVCodecContext*,AVFrame*,
++                         int*,const AVPacket*) = nullptr;
++static void (*av_init_packet)(AVPacket*) = nullptr;
++#endif
++
+ static AVPixelFormat
+ ChoosePixelFormat(AVCodecContext* aCodecContext, const AVPixelFormat* aFormats)
+ {
+@@ -123,7 +131,8 @@ FFmpegH264Decoder<LIBAV_VER>::Init()
+ {
+   nsresult rv = FFmpegDataDecoder::Init();
+   NS_ENSURE_SUCCESS(rv, rv);
+-
++  avcodec_decode_video2 = (decltype(avcodec_decode_video2))FFmpegRuntimeLinker::avc_ptr[_decode_video2];
++  av_init_packet = (decltype(av_init_packet))FFmpegRuntimeLinker::avc_ptr[_init_packet];
+   return NS_OK;
+ }
+ 
+@@ -155,7 +164,12 @@ FFmpegH264Decoder<LIBAV_VER>::InitCodecContext()
+   // FFmpeg will call back to this to negotiate a video pixel format.
+   mCodecContext->get_format = ChoosePixelFormat;
+ 
+-  mCodecParser = av_parser_init(mCodecID);
++  mCodecParser =
++#if defined(XP_WIN)
++           reinterpret_cast<AVCodecParserContext*(*)(int)>(FFmpegRuntimeLinker::avc_ptr[_parser_init])(mCodecID);
++#else
++           av_parser_init(mCodecID);
++#endif
+   if (mCodecParser) {
+     mCodecParser->flags |= PARSER_FLAG_COMPLETE_FRAMES;
+   }
+@@ -177,10 +191,22 @@ FFmpegH264Decoder<LIBAV_VER>::DoDecodeFrame(MediaRawData* aSample)
+     while (inputSize) {
+       uint8_t* data;
+       int size;
+-      int len = av_parser_parse2(mCodecParser, mCodecContext, &data, &size,
++
++      int len = 
++#if defined(XP_WIN)
++                reinterpret_cast<int(*)(AVCodecParserContext*,AVCodecContext*,uint8_t**,int*,
++                                 const uint8_t*,int,int64_t,int64_t,int64_t)>
++                                 (FFmpegRuntimeLinker::avc_ptr[_parser_parse2])(mCodecParser,
++                                 mCodecContext, &data, &size,
+                                  inputData, inputSize,
+                                  aSample->mTime, aSample->mTimecode,
+                                  aSample->mOffset);
++#else
++                av_parser_parse2(mCodecParser, mCodecContext, &data, &size,
++                                 inputData, inputSize,
++                                 aSample->mTime, aSample->mTimecode,
++                                 aSample->mOffset);
++#endif
+       if (size_t(len) > inputSize) {
+         mCallback->Error();
+         return DecodeResult::DECODE_ERROR;
+@@ -368,7 +394,11 @@ FFmpegH264Decoder<LIBAV_VER>::~FFmpegH264Decoder()
+ {
+   MOZ_COUNT_DTOR(FFmpegH264Decoder);
+   if (mCodecParser) {
++#if defined(XP_WIN)
++    reinterpret_cast<void(*)(AVCodecParserContext*)>(FFmpegRuntimeLinker::avc_ptr[_parser_close])(mCodecParser);
++#else
+     av_parser_close(mCodecParser);
++#endif
+     mCodecParser = nullptr;
+   }
+ }
+diff --git a/dom/media/platforms/ffmpeg/FFmpegLibs.h b/dom/media/platforms/ffmpeg/FFmpegLibs.h
+index 0372b60..9bfaf34 100644
+--- a/dom/media/platforms/ffmpeg/FFmpegLibs.h
++++ b/dom/media/platforms/ffmpeg/FFmpegLibs.h
+@@ -29,10 +29,11 @@ enum { LIBAV_VER = LIBAVCODEC_VERSION_MAJOR };
+ 
+ namespace mozilla {
+ 
++#if !defined(XP_WIN)
+ #define AV_FUNC(func, ver) extern typeof(func)* func;
+ #include "FFmpegFunctionList.h"
+ #undef AV_FUNC
+-
++#endif
+ }
+ 
+ #endif // __FFmpegLibs_h__
+diff --git a/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp b/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp
+index 05bec24..c4842bb 100644
+--- a/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp
+@@ -21,6 +21,11 @@ public:
+   static already_AddRefed<PlatformDecoderModule> Create();
+ };
+ 
++#if defined(XP_WIN)
++HMODULE FFmpegRuntimeLinker::avcd=NULL;
++HMODULE FFmpegRuntimeLinker::avutl=NULL;
++void* FFmpegRuntimeLinker::avc_ptr[avc_symbs_count];
++#else
+ static const char* sLibs[] = {
+ #if defined(XP_DARWIN)
+   "libavcodec.57.dylib",
+@@ -41,14 +46,16 @@ static const char* sLibs[] = {
+ 
+ PRLibrary* FFmpegRuntimeLinker::sLinkedLib = nullptr;
+ const char* FFmpegRuntimeLinker::sLib = nullptr;
+-static unsigned (*avcodec_version)() = nullptr;
+-
+ #define AV_FUNC(func, ver) void (*func)();
+ #define LIBAVCODEC_ALLVERSION
+ #include "FFmpegFunctionList.h"
+ #undef LIBAVCODEC_ALLVERSION
+ #undef AV_FUNC
+ 
++#endif
++
++static unsigned (*avcodec_version)() = nullptr;
++
+ /* static */ bool
+ FFmpegRuntimeLinker::Link()
+ {
+@@ -58,6 +65,82 @@ FFmpegRuntimeLinker::Link()
+ 
+   MOZ_ASSERT(NS_IsMainThread());
+ 
++#if defined(XP_WIN)
++  HKEY aKey;
++  DWORD d;
++  char* dllpath = new char[1000];
++
++  if(::RegOpenKeyExA(HKEY_CLASSES_ROOT,
++    "CLSID\\{171252A0-8820-4AFE-9DF8-5C92B2D66B04}\\InprocServer32",
++     0,KEY_READ, &aKey)!=0) return false;
++
++  if(::RegQueryValueExA(aKey, NULL, NULL, NULL, (LPBYTE)dllpath, &d)!=0) return false;
++
++  ::RegCloseKey(aKey);
++
++  int i = (int)d;
++	do{
++		i--;
++	} while (dllpath[i]!='\\'&&i>0);
++  i++;
++  ::lstrcpyA(&dllpath[i], "avcodec-lav-57.dll");
++  avcd=::LoadLibraryExA(dllpath,0,LOAD_WITH_ALTERED_SEARCH_PATH);
++  ::lstrcpyA(&dllpath[i], "avutil-lav-55.dll");
++  avutl=::LoadLibraryExA(dllpath,0,LOAD_WITH_ALTERED_SEARCH_PATH);
++
++  if(avcd==NULL||avutl==NULL){
++     delete [] dllpath;
++     return false;
++     } 
++
++  HMODULE hmod=avcd;
++
++  const char* avc_symbs[]={
++  "avcodec_version",
++  "avcodec_alloc_context3",
++  "avcodec_close",
++  "avcodec_decode_audio4",
++  "avcodec_decode_video2",
++  "avcodec_find_decoder",
++  "avcodec_flush_buffers",
++  "avcodec_open2",
++  "avcodec_register_all",
++  "av_init_packet",
++  "av_parser_init",
++  "av_parser_close",
++  "av_parser_parse2",
++  /* libavutil */
++  "av_log_set_level",
++  "av_freep",
++  "av_frame_alloc",
++  "av_frame_free",
++  "av_frame_unref"
++  };
++
++  i=0;
++
++  do{
++  if (i==13) hmod=avutl;
++    avc_ptr[i] = GetProcAddress(hmod,avc_symbs[i]);
++    if (avc_ptr[i]==NULL){
++      ::GetModuleFileNameA(hmod,dllpath,1000);
++      d=::lstrlenA(dllpath);
++  	do{
++		d--;
++	} while (dllpath[i]!='\\'&&i>0);
++      FFMPEG_LOG("Couldn't load function ",avc_symbs[i]," from %s.", &dllpath[d]);
++      delete [] dllpath;
++      return false;
++     }
++    i++;
++  }while(i<avc_symbs_count);
++  delete [] dllpath;
++  avcodec_version = (decltype(avcodec_version))avc_ptr[0];
++  sLinkStatus = LinkStatus_SUCCEEDED;
++  return true;
++
++#else
++
+   for (size_t i = 0; i < ArrayLength(sLibs); i++) {
+     const char* lib = sLibs[i];
+     PRLibSpec lspec;
+@@ -85,8 +168,10 @@ FFmpegRuntimeLinker::Link()
+ 
+   sLinkStatus = LinkStatus_FAILED;
+   return false;
++#endif
+ }
+ 
++#if !defined(XP_WIN)
+ /* static */ bool
+ FFmpegRuntimeLinker::Bind(const char* aLibName)
+ {
+@@ -149,6 +234,7 @@ FFmpegRuntimeLinker::Bind(const char* aLibName)
+ #undef LIBAVCODEC_ALLVERSION
+   return true;
+ }
++#endif
+ 
+ /* static */ already_AddRefed<PlatformDecoderModule>
+ FFmpegRuntimeLinker::CreateDecoderModule()
+@@ -160,13 +246,14 @@ FFmpegRuntimeLinker::CreateDecoderModule()
+   if (!GetVersion(major, minor, micro)) {
+     return  nullptr;
+   }
+-
+   nsRefPtr<PlatformDecoderModule> module;
+   switch (major) {
++#if !defined(XP_WIN)
+     case 53: module = FFmpegDecoderModule<53>::Create(); break;
+     case 54: module = FFmpegDecoderModule<54>::Create(); break;
+     case 55:
+     case 56: module = FFmpegDecoderModule<55>::Create(); break;
++#endif
+     case 57: module = FFmpegDecoderModule<57>::Create(); break;
+     default: module = nullptr;
+   }
+@@ -176,6 +263,12 @@ FFmpegRuntimeLinker::CreateDecoderModule()
+ /* static */ void
+ FFmpegRuntimeLinker::Unlink()
+ {
++#if defined(XP_WIN)
++    ::FreeLibrary(avcd);
++    ::FreeLibrary(avutl);
++    sLinkStatus = LinkStatus_INIT;
++    avcodec_version = nullptr;
++#else
+   if (sLinkedLib) {
+     PR_UnloadLibrary(sLinkedLib);
+     sLinkedLib = nullptr;
+@@ -183,6 +276,7 @@ FFmpegRuntimeLinker::Unlink()
+     sLinkStatus = LinkStatus_INIT;
+     avcodec_version = nullptr;
+   }
++#endif
+ }
+ 
+ /* static */ uint32_t
+diff --git a/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h b/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h
+index 05ee8a8..2ddebba 100644
+--- a/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h
++++ b/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h
+@@ -9,11 +9,38 @@
+ 
+ #include "PlatformDecoderModule.h"
+ #include <stdint.h>
+-
++#if defined(XP_WIN)
++#include "windows.h"
++#else
+ struct PRLibrary;
++#endif
+ 
+ namespace mozilla
+ {
++#if defined(XP_WIN)
++
++#define avc_symbs_count 18
++#define _version	0
++#define _alloc_context3 1
++#define _close          2
++#define _decode_audio4  3
++#define _decode_video2  4
++#define _find_decoder   5
++#define _flush_buffers  6 
++#define _open2          7
++#define _register_all   8
++#define _init_packet    9
++#define _parser_init    10
++#define _parser_close   11
++#define _parser_parse2  12
++/* libavutil */
++#define _log_set_level  13
++#define _freep          14
++#define _frame_alloc    15
++#define _frame_free     16
++#define _frame_unref    17
++
++#else
+ 
+ enum {
+   AV_FUNC_AVUTIL_MASK = 1 << 8,
+@@ -31,6 +58,8 @@ enum {
+   AV_FUNC_AVUTIL_ALL = AV_FUNC_AVCODEC_ALL | AV_FUNC_AVUTIL_MASK
+ };
+ 
++#endif
++
+ class FFmpegRuntimeLinker
+ {
+ public:
+@@ -38,13 +67,18 @@ public:
+   static void Unlink();
+   static already_AddRefed<PlatformDecoderModule> CreateDecoderModule();
+   static uint32_t GetVersion(uint32_t& aMajor, uint32_t& aMinor, uint32_t& aMicro);
+-
++#if defined(XP_WIN)
++  static void* avc_ptr[avc_symbs_count];
++#endif
+ private:
++#if defined(XP_WIN)
++  static HMODULE avcd;
++  static HMODULE avutl;
++#else
+   static PRLibrary* sLinkedLib;
+   static const char* sLib;
+-
+   static bool Bind(const char* aLibName);
+-
++#endif
+   static enum LinkStatus {
+     LinkStatus_INIT = 0,
+     LinkStatus_FAILED,
+diff --git a/dom/media/platforms/moz.build b/dom/media/platforms/moz.build
+index 46b6f98..f3ab64c 100644
+--- a/dom/media/platforms/moz.build
++++ b/dom/media/platforms/moz.build
+@@ -28,10 +29,15 @@ if CONFIG['MOZ_FFMPEG']:
+         'ffmpeg/FFmpegLog.cpp',
+         'ffmpeg/FFmpegRuntimeLinker.cpp',
+     ]
++
++    if CONFIG['OS_TARGET'] == 'Linux':
++         DIRS += [
++            'ffmpeg/libav53',
++            'ffmpeg/libav54',
++            'ffmpeg/libav55',
++        ]
++
+     DIRS += [
+-        'ffmpeg/libav53',
+-        'ffmpeg/libav54',
+-        'ffmpeg/libav55',
+         'ffmpeg/ffmpeg57',
+     ]
+     LOCAL_INCLUDES += [
+-- 
+2.8.2.windows.1
+
