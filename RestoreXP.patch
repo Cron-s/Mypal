@@ -1,24 +1,24 @@
-From 622aa92e7d44b26cea0b2036c84b7e5791fd5ba6 Mon Sep 17 00:00:00 2001
+From 814fc31f17157af47b59a1882bcadeb913c6bdca Mon Sep 17 00:00:00 2001
 From: fedor <fedor@mail.ru>
-Date: Thu, 28 Sep 2017 03:46:51 +0300
-Subject: [PATCH] Restore winxp support main
+Date: Thu, 12 Oct 2017 05:42:33 +0300
+Subject: [PATCH] Fix x64 subsystem issue
 
 ---
  browser/app/Makefile.in                            |  6 --
- browser/app/nsBrowserApp.cpp                       | 59 +++++++++++++---
+ browser/app/nsBrowserApp.cpp                       | 59 +++++++++++++--
  browser/app/splash.rc                              |  2 -
  browser/base/content/aboutDialog.xul               |  7 +-
  .../branding/unofficial/pref/palemoon-branding.js  |  5 +-
  browser/installer/Makefile.in                      |  3 +
  browser/installer/windows/nsis/defines.nsi.in      |  4 +-
- configure.in                                       | 82 +++++++++++++++++++++-
- gfx/angle/Makefile.in                              |  4 ++
+ configure.in                                       | 87 +++++++++++++++++++++-
+ gfx/angle/Makefile.in                              |  4 +
  gfx/gl/GLLibraryEGL.cpp                            |  5 ++
  gfx/gl/moz.build                                   |  2 +
  gfx/thebes/gfxWindowsPlatform.cpp                  |  1 +
  toolkit/mozapps/installer/windows/nsis/common.nsh  |  3 +-
- xpcom/ds/TimeStamp_windows.cpp                     | 52 ++++++++++++--
- 14 files changed, 202 insertions(+), 33 deletions(-)
+ xpcom/ds/TimeStamp_windows.cpp                     | 52 +++++++++++--
+ 14 files changed, 206 insertions(+), 34 deletions(-)
 
 diff --git a/browser/app/Makefile.in b/browser/app/Makefile.in
 index 580fcb1..b60615c 100644
@@ -201,7 +201,7 @@ index ad171a5..f2d95b6 100644
  
  # File details shared by both the installer and uninstaller
 diff --git a/configure.in b/configure.in
-index 9103c1c..ba6b896 100644
+index dcfa753..23af75e 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -424,7 +424,7 @@ dnl ========================================================
@@ -213,16 +213,21 @@ index 9103c1c..ba6b896 100644
  
  MOZ_ARG_WITH_STRING(windows-version,
  [  --with-windows-version=WINSDK_TARGETVER
-@@ -2180,7 +2180,7 @@ ia64*-hpux*)
+@@ -2179,8 +2179,11 @@ ia64*-hpux*)
+         MKCSHLIB='$(LD) -NOLOGO -DLL -OUT:$@ -PDB:$(LINK_PDBFILE) $(DSO_LDOPTS)'
          MKSHLIB_FORCE_ALL=
          MKSHLIB_UNFORCE_ALL=
-         dnl Set subsystem version 6.
+-        dnl Set subsystem version 6.
 -        WIN32_SUBSYSTEM_VERSION=6.00
++        dnl Set subsystem version.
 +        WIN32_SUBSYSTEM_VERSION=5.01
++        if test "$HAVE_64BIT_BUILD"; then
++            WIN32_SUBSYSTEM_VERSION=5.02
++        fi
          WIN32_CONSOLE_EXE_LDFLAGS=-SUBSYSTEM:CONSOLE,$WIN32_SUBSYSTEM_VERSION
          WIN32_GUI_EXE_LDFLAGS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
          DSO_LDOPTS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
-@@ -5713,6 +5713,9 @@ MOZ_D3D_CPU_SUFFIX=
+@@ -5713,6 +5716,9 @@ MOZ_D3D_CPU_SUFFIX=
  MOZ_HAS_WINSDK_WITH_D3D=
  MOZ_D3DCOMPILER_VISTA_DLL=
  MOZ_D3DCOMPILER_VISTA_DLL_PATH=
@@ -232,7 +237,7 @@ index 9103c1c..ba6b896 100644
  
  case "$target_os" in
  *mingw*)
-@@ -5737,6 +5740,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
+@@ -5737,6 +5743,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
    AC_DEFINE(MOZ_WEBGL_CONFORMANT)
  fi
  
@@ -241,7 +246,7 @@ index 9103c1c..ba6b896 100644
  dnl ========================================================
  dnl D3D compiler DLL
  dnl ========================================================
-@@ -5785,20 +5790,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
+@@ -5785,20 +5793,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
      MOZ_CHECK_HEADER(d3d10.h, MOZ_HAS_WINSDK_WITH_D3D=1)
    fi
  
@@ -327,7 +332,7 @@ index 9103c1c..ba6b896 100644
    fi
  fi
  
-@@ -7637,6 +7707,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
+@@ -7637,6 +7710,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
  MOZ_ENABLE_SKIA=1,
  MOZ_ENABLE_SKIA=)
  
@@ -339,7 +344,7 @@ index 9103c1c..ba6b896 100644
  MOZ_ARG_DISABLE_BOOL(skia-gpu,
  [  --disable-skia-gpu  Disable use of Skia-GPU],
  MOZ_DISABLE_SKIA_GPU=1,
-@@ -8153,6 +8228,9 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
+@@ -8153,6 +8231,9 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
  AC_SUBST(MOZ_HAS_WINSDK_WITH_D3D)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL_PATH)
