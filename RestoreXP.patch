@@ -1,7 +1,7 @@
-From 814fc31f17157af47b59a1882bcadeb913c6bdca Mon Sep 17 00:00:00 2001
+From f312c692ea29696e005eb05de0eaf41812bb5202 Mon Sep 17 00:00:00 2001
 From: fedor <fedor@mail.ru>
-Date: Thu, 12 Oct 2017 05:42:33 +0300
-Subject: [PATCH] Fix x64 subsystem issue
+Date: Wed, 8 Nov 2017 17:29:35 +0300
+Subject: [PATCH] Restore winxp support main
 
 ---
  browser/app/Makefile.in                            |  6 --
@@ -157,10 +157,10 @@ index 1ba8f06..7b417d4 100644
          </vbox>
        </vbox>
 diff --git a/browser/branding/unofficial/pref/palemoon-branding.js b/browser/branding/unofficial/pref/palemoon-branding.js
-index ae70063..29426cb 100644
+index bf46b74..f71a809 100644
 --- a/browser/branding/unofficial/pref/palemoon-branding.js
 +++ b/browser/branding/unofficial/pref/palemoon-branding.js
-@@ -4,4 +4,7 @@
+@@ -4,7 +4,10 @@
  #include ../../shared/pref/uaoverrides.inc
  
  pref("startup.homepage_override_url","http://www.palemoon.org/unofficial.shtml");
@@ -169,6 +169,9 @@ index ae70063..29426cb 100644
 +
 +// Enable Firefox compatmode by default.
 +pref("general.useragent.compatMode", 2);
+ 
+ // Updates disabled
+ pref("app.update.enabled", false);
 diff --git a/browser/installer/Makefile.in b/browser/installer/Makefile.in
 index 7ba8ae9..03a811c 100644
 --- a/browser/installer/Makefile.in
@@ -201,7 +204,7 @@ index ad171a5..f2d95b6 100644
  
  # File details shared by both the installer and uninstaller
 diff --git a/configure.in b/configure.in
-index dcfa753..23af75e 100644
+index c49c425..6ab9673 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -424,7 +424,7 @@ dnl ========================================================
@@ -213,7 +216,7 @@ index dcfa753..23af75e 100644
  
  MOZ_ARG_WITH_STRING(windows-version,
  [  --with-windows-version=WINSDK_TARGETVER
-@@ -2179,8 +2179,11 @@ ia64*-hpux*)
+@@ -2191,8 +2191,11 @@ ia64*-hpux*)
          MKCSHLIB='$(LD) -NOLOGO -DLL -OUT:$@ -PDB:$(LINK_PDBFILE) $(DSO_LDOPTS)'
          MKSHLIB_FORCE_ALL=
          MKSHLIB_UNFORCE_ALL=
@@ -227,7 +230,7 @@ index dcfa753..23af75e 100644
          WIN32_CONSOLE_EXE_LDFLAGS=-SUBSYSTEM:CONSOLE,$WIN32_SUBSYSTEM_VERSION
          WIN32_GUI_EXE_LDFLAGS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
          DSO_LDOPTS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
-@@ -5713,6 +5716,9 @@ MOZ_D3D_CPU_SUFFIX=
+@@ -5725,6 +5728,9 @@ MOZ_D3D_CPU_SUFFIX=
  MOZ_HAS_WINSDK_WITH_D3D=
  MOZ_D3DCOMPILER_VISTA_DLL=
  MOZ_D3DCOMPILER_VISTA_DLL_PATH=
@@ -237,7 +240,7 @@ index dcfa753..23af75e 100644
  
  case "$target_os" in
  *mingw*)
-@@ -5737,6 +5743,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
+@@ -5749,6 +5755,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
    AC_DEFINE(MOZ_WEBGL_CONFORMANT)
  fi
  
@@ -246,7 +249,7 @@ index dcfa753..23af75e 100644
  dnl ========================================================
  dnl D3D compiler DLL
  dnl ========================================================
-@@ -5785,20 +5793,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
+@@ -5797,20 +5805,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
      MOZ_CHECK_HEADER(d3d10.h, MOZ_HAS_WINSDK_WITH_D3D=1)
    fi
  
@@ -332,7 +335,7 @@ index dcfa753..23af75e 100644
    fi
  fi
  
-@@ -7637,6 +7710,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
+@@ -7649,6 +7722,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
  MOZ_ENABLE_SKIA=1,
  MOZ_ENABLE_SKIA=)
  
@@ -344,7 +347,7 @@ index dcfa753..23af75e 100644
  MOZ_ARG_DISABLE_BOOL(skia-gpu,
  [  --disable-skia-gpu  Disable use of Skia-GPU],
  MOZ_DISABLE_SKIA_GPU=1,
-@@ -8153,6 +8231,9 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
+@@ -8165,6 +8243,9 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
  AC_SUBST(MOZ_HAS_WINSDK_WITH_D3D)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL_PATH)
@@ -399,10 +402,10 @@ index 72e6dc1..be9c3e5 100644
  CXXFLAGS += CONFIG['MOZ_CAIRO_CFLAGS']
  CXXFLAGS += CONFIG['TK_CFLAGS']
 diff --git a/gfx/thebes/gfxWindowsPlatform.cpp b/gfx/thebes/gfxWindowsPlatform.cpp
-index 8380303..642fa47 100644
+index 6cdcde8..4ca89d1 100644
 --- a/gfx/thebes/gfxWindowsPlatform.cpp
 +++ b/gfx/thebes/gfxWindowsPlatform.cpp
-@@ -1835,6 +1835,7 @@ gfxWindowsPlatform::InitD3D11Devices()
+@@ -1841,6 +1841,7 @@ gfxWindowsPlatform::InitD3D11Devices()
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_11_0);
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_10_1);
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_10_0);
