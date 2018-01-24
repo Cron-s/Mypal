@@ -1,37 +1,11 @@
-## Welcome to GitHub Pages
+### Mypal
 
-You can use the [editor on GitHub](https://github.com/Feodor2/Mypal/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+Unofficial build of the Pale Moon brower, for using on winxp and win2003 systems
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+### Download
 
-### Markdown
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[FAQ](https://github.com/Feodor2/Mypal/wiki) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/Feodor2/Mypal/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+https://github.com/Feodor2/Mypal/releases
 
 ### Support or Contact
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [Ask questions](https://github.com/Feodor2/Mypal/issues) and we’ll help you sort it out.
+Having trouble with Pages? Check out our [documentation](https://github.com/Feodor2/Mypal/wiki) or [ask questions](https://github.com/Feodor2/Mypal/issues) and we’ll help you sort it out.
