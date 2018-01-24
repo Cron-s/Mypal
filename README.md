@@ -2,9 +2,7 @@
 
 Unofficial build of the Pale Moon brower, for using on winxp and win2003 systems
 
-### Download
-
-https://github.com/Feodor2/Mypal/releases
+### [Download](https://github.com/Feodor2/Mypal/releases)
 
 ### Support or Contact
 
