@@ -6,7 +6,7 @@ First and the foremost goal of this article, is to have a good browser for winxp
 
 Mypal handle webpages excactly as the Palemoon,  no differnce there, for now.
 
-But differnces are there, in other things like portable modes, removen some bunch of mozilla legacy junk and some settings.
+But differences are there, in other things like portable modes, removen some bunch of mozilla legacy junk and some settings.
 
 For mypal you are not to request the support from palemoon official, i willing provide the support myself, however do not wait that i shall respond quickly.
 
