@@ -1,7 +1,7 @@
-From b652107f24177a6611073c42f384bcf8a40dbaa5 Mon Sep 17 00:00:00 2001
+From da29c7f763a1263d3513969b142a0e426eb4fdee Mon Sep 17 00:00:00 2001
 From: fedor <fedor@mail.ru>
-Date: Thu, 31 Aug 2017 10:04:26 +0300
-Subject: [PATCH] Portable mode
+Date: Mon, 5 Feb 2018 01:17:27 +0300
+Subject: [PATCH] portable
 
 ---
  browser/components/nsBrowserGlue.js                |  6 ++-
@@ -9,14 +9,14 @@ Subject: [PATCH] Portable mode
  browser/components/shell/nsIShellService.idl       |  3 ++
  browser/components/shell/nsWindowsShellService.cpp | 58 ++++++++++++++++++++++
  .../en-US/chrome/browser/shellservice.properties   |  2 +
- toolkit/xre/nsAppRunner.cpp                        | 46 +++++++++++++++++
- 6 files changed, 139 insertions(+), 2 deletions(-)
+ toolkit/xre/nsAppRunner.cpp                        | 47 ++++++++++++++++++
+ 6 files changed, 140 insertions(+), 2 deletions(-)
 
 diff --git a/browser/components/nsBrowserGlue.js b/browser/components/nsBrowserGlue.js
-index 735c2fc..c4a1039 100644
+index 705593b..18f3262 100644
 --- a/browser/components/nsBrowserGlue.js
 +++ b/browser/components/nsBrowserGlue.js
-@@ -597,7 +597,9 @@ BrowserGlue.prototype = {
+@@ -600,7 +600,9 @@ BrowserGlue.prototype = {
            (ss.sessionType == Ci.nsISessionStartup.RECOVER_SESSION);
        }
        catch (ex) { /* never mind; suppose SessionStore is broken */ }
@@ -27,7 +27,7 @@ index 735c2fc..c4a1039 100644
        let isDefault = shell.isDefaultBrowser(true, false); // startup check, check all assoc
  
        if (shouldCheck && !isDefault && !willRecoverSession) {
-@@ -634,7 +636,7 @@ BrowserGlue.prototype = {
+@@ -637,7 +639,7 @@ BrowserGlue.prototype = {
            shell.shouldCheckDefaultBrowser = checkEveryTime.value;
          }.bind(this), Ci.nsIThread.DISPATCH_NORMAL);
        }
@@ -188,7 +188,7 @@ index d4f449f..e53fef3 100644
  desktopBackgroundLeafNameWin=Desktop Background.bmp
  DesktopBackgroundDownloading=Saving Picture…
 diff --git a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
-index 3ea1186..0238926 100644
+index e69ead2..20a84a7 100644
 --- a/toolkit/xre/nsAppRunner.cpp
 +++ b/toolkit/xre/nsAppRunner.cpp
 @@ -203,6 +203,8 @@ int    gRestartArgc;
@@ -200,7 +200,7 @@ index 3ea1186..0238926 100644
  
  #ifdef MOZ_WIDGET_QT
  static int    gQtOnlyArgc;
-@@ -2101,6 +2103,39 @@ SelectProfile(nsIProfileLock* *aResult, nsIToolkitProfileService* aProfileSvc, n
+@@ -2104,6 +2106,39 @@ SelectProfile(nsIProfileLock* *aResult, nsIToolkitProfileService* aProfileSvc, n
      return rv;
    }
  
@@ -240,19 +240,20 @@ index 3ea1186..0238926 100644
    uint32_t count;
    rv = aProfileSvc->GetProfileCount(&count);
    NS_ENSURE_SUCCESS(rv, rv);
-@@ -2980,6 +3015,17 @@ XREMain::XRE_mainInit(bool* aExitFlag)
+@@ -2985,6 +3020,18 @@ XREMain::XRE_mainInit(bool* aExitFlag)
      SaveToEnv("MOZ_NO_REMOTE=1");
    }
  
 +  //MYPAL CODE
-+    nsCOMPtr<nsIFile> portmodemark;
-+    mDirProvider.GetAppDir()->Clone(getter_AddRefs(portmodemark));
-+  
-+    portmodemark->AppendNative(NS_LITERAL_CSTRING("pmprt.mod"));
-+
-+    rv = portmodemark->Exists(&portable);
-+
-+   if (portable) SaveToEnv("MOZ_NO_REMOTE=1");
++  nsCOMPtr<nsIFile> portmodemark;
++  mDirProvider.GetAppDir()->Clone(getter_AddRefs(portmodemark));
++  portmodemark->AppendNative(NS_LITERAL_CSTRING("pmprt.mod"));
++  rv = portmodemark->Exists(&portable);
++  if (portable) SaveToEnv("MOZ_NO_REMOTE=1");
++  else{
++  mDirProvider.GetAppDir()->Clone(getter_AddRefs(portmodemark));
++  portmodemark->AppendNative(NS_LITERAL_CSTRING("pmundprt.mod"));
++  rv = portmodemark->Exists(&portable);}
 +  //MYPAL CODE END
 +
    ar = CheckArg("new-instance", true);

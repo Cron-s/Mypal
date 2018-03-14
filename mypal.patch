@@ -1,0 +1,226 @@
+From 3d79ba6d674bacb801d0cd25ea124c9eafb343f0 Mon Sep 17 00:00:00 2001
+From: fedor <fedor@mail.ru>
+Date: Wed, 14 Mar 2018 10:08:56 +0300
+Subject: [PATCH] mypal
+
+---
+ browser/base/content/aboutDialog.xul                          | 11 +++--------
+ browser/branding/shared/branding.mozbuild                     |  2 +-
+ browser/branding/shared/locales/browserconfig.properties      |  4 ++--
+ browser/branding/shared/pref/preferences.inc                  |  7 +++----
+ browser/branding/unofficial/branding.nsi                      |  4 ++--
+ browser/branding/unofficial/configure.sh                      |  2 +-
+ browser/branding/unofficial/locales/en-US/brand.dtd           |  6 +++---
+ browser/branding/unofficial/locales/en-US/brand.properties    |  6 +++---
+ browser/branding/unofficial/mypal.VisualElementsManifest.xml  |  8 ++++++++
+ .../branding/unofficial/palemoon.VisualElementsManifest.xml   |  8 --------
+ browser/branding/unofficial/pref/palemoon-branding.js         |  7 +++++--
+ browser/confvars.sh                                           |  4 ++--
+ browser/installer/package-manifest.in                         |  2 +-
+ 11 files changed, 29 insertions(+), 31 deletions(-)
+ create mode 100644 browser/branding/unofficial/mypal.VisualElementsManifest.xml
+ delete mode 100644 browser/branding/unofficial/palemoon.VisualElementsManifest.xml
+
+diff --git a/browser/base/content/aboutDialog.xul b/browser/base/content/aboutDialog.xul
+index 743ff21..dcdee0e 100644
+--- a/browser/base/content/aboutDialog.xul
++++ b/browser/base/content/aboutDialog.xul
+@@ -88,18 +88,13 @@
+           </vbox>
+ 
+         <description class="text-pmcreds">
+-#ifdef MC_PRIVATE_BUILD
+-          This is a private build of Pale Moon. If you did not manually build this copy from source yourself, then please download an official version from the <label class="text-link" href="http://www.palemoon.org/">Pale Moon website</label>.
+-#else
+-          Pale Moon is released by <label class="text-link" href="http://www.moonchildproductions.info">Moonchild Productions</label>.
++          Mypal browser is based on Pale Moon.
+         </description>
+         <description class="text-pmcreds">
+-          Special thanks to all our supporters and donors for making this browser possible!
++          Adapded for windows xp and 2003.
+         </description>
+         <description class="text-blurb">
+-          If you wish to contribute, please consider helping out by providing support to other users on the <label class="text-link" href="https://forum.palemoon.org/">Pale Moon forum</label>
+-          or getting involved in our development by tackling some of the issues found in our GitHub issue tracker.
+-#endif
++          If you wish to contribute, please consider helping out by providing support to other users on the <label class="text-link" href="https://feodor2.github.io/Mypal/">gihub</label>
+         </description>    
+         </vbox>
+       </vbox>
+diff --git a/browser/branding/shared/branding.mozbuild b/browser/branding/shared/branding.mozbuild
+index 0636be6..664c63f 100644
+--- a/browser/branding/shared/branding.mozbuild
++++ b/browser/branding/shared/branding.mozbuild
+@@ -15,7 +15,7 @@ JS_PREFERENCE_FILES += [
+ 
+ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
+     FINAL_TARGET_FILES['..'] += [
+-        'palemoon.VisualElementsManifest.xml',
++        'mypal.VisualElementsManifest.xml',
+     ]
+     FINAL_TARGET_FILES.VisualElements += [
+         'VisualElements_150.png',
+diff --git a/browser/branding/unofficial/branding.nsi b/browser/branding/unofficial/branding.nsi
+index cf1642e..4f3abb7 100644
+--- a/browser/branding/unofficial/branding.nsi
++++ b/browser/branding/unofficial/branding.nsi
+@@ -8,8 +8,8 @@
+ 
+ # BrandFullNameInternal is used for some registry and file system values
+ # instead of BrandFullName and typically should not be modified.
+-!define BrandFullNameInternal "New Moon"
+-!define CompanyName           "Moonchild Productions"
++!define BrandFullNameInternal "Mypal"
++!define CompanyName           "Feodor2"
+ !define URLInfoAbout          "http://www.palemoon.org"
+ !define URLUpdateInfo         "http://www.palemoon.org"
+ 
+diff --git a/browser/branding/unofficial/configure.sh b/browser/branding/unofficial/configure.sh
+index 05a1e1b..ed443e0 100755
+--- a/browser/branding/unofficial/configure.sh
++++ b/browser/branding/unofficial/configure.sh
+@@ -2,4 +2,4 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-MOZ_APP_DISPLAYNAME=NewMoon
++MOZ_APP_DISPLAYNAME=Mypal
+diff --git a/browser/branding/unofficial/locales/en-US/brand.dtd b/browser/branding/unofficial/locales/en-US/brand.dtd
+index a90d524..6ede21b 100644
+--- a/browser/branding/unofficial/locales/en-US/brand.dtd
++++ b/browser/branding/unofficial/locales/en-US/brand.dtd
+@@ -2,7 +2,7 @@
+    - License, v. 2.0. If a copy of the MPL was not distributed with this
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ 
+-<!ENTITY  brandShortName        "New Moon">
+-<!ENTITY  brandFullName         "New Moon">
+-<!ENTITY  vendorShortName       "Moonchild">
++<!ENTITY  brandShortName        "Mypal">
++<!ENTITY  brandFullName         "Mypal">
++<!ENTITY  vendorShortName       "Feodor2">
+ <!ENTITY  trademarkInfo.part1   " ">
+diff --git a/browser/branding/unofficial/locales/en-US/brand.properties b/browser/branding/unofficial/locales/en-US/brand.properties
+index 863a7c8..8c4fd8a 100644
+--- a/browser/branding/unofficial/locales/en-US/brand.properties
++++ b/browser/branding/unofficial/locales/en-US/brand.properties
+@@ -2,8 +2,8 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-brandShortName=New Moon
+-brandFullName=New Moon
+-vendorShortName=Moonchild
++brandShortName=Mypal
++brandFullName=Mypal
++vendorShortName=Feodor2
+ 
+ syncBrandShortName=Sync
+diff --git a/browser/branding/unofficial/mypal.VisualElementsManifest.xml b/browser/branding/unofficial/mypal.VisualElementsManifest.xml
+new file mode 100644
+index 0000000..070bfc9
+--- /dev/null
++++ b/browser/branding/unofficial/mypal.VisualElementsManifest.xml
+@@ -0,0 +1,8 @@
++<Application xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'>
++  <VisualElements
++      ShowNameOnSquare150x150Logo='on'
++      Square150x150Logo='browser\VisualElements\VisualElements_150.png'
++      Square70x70Logo='browser\VisualElements\VisualElements_70.png'
++      ForegroundText='light'
++      BackgroundColor='#171717'/>
++</Application>
+diff --git a/browser/branding/unofficial/palemoon.VisualElementsManifest.xml b/browser/branding/unofficial/palemoon.VisualElementsManifest.xml
+deleted file mode 100644
+index 070bfc9..0000000
+--- a/browser/branding/unofficial/palemoon.VisualElementsManifest.xml
++++ /dev/null
+@@ -1,8 +0,0 @@
+-<Application xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'>
+-  <VisualElements
+-      ShowNameOnSquare150x150Logo='on'
+-      Square150x150Logo='browser\VisualElements\VisualElements_150.png'
+-      Square70x70Logo='browser\VisualElements\VisualElements_70.png'
+-      ForegroundText='light'
+-      BackgroundColor='#171717'/>
+-</Application>
+diff --git a/browser/branding/unofficial/pref/palemoon-branding.js b/browser/branding/unofficial/pref/palemoon-branding.js
+index bf46b74..81ab830 100644
+--- a/browser/branding/unofficial/pref/palemoon-branding.js
++++ b/browser/branding/unofficial/pref/palemoon-branding.js
+@@ -3,8 +3,11 @@
+ #include ../../shared/pref/preferences.inc
+ #include ../../shared/pref/uaoverrides.inc
+ 
+-pref("startup.homepage_override_url","http://www.palemoon.org/unofficial.shtml");
+-pref("app.releaseNotesURL", "http://www.palemoon.org/releasenotes.shtml");
++pref("startup.homepage_override_url","https://feodor2.github.io/Mypal/");
++pref("app.releaseNotesURL", "https://github.com/Feodor2/Mypal/releases");
++
++// Enable Firefox compatmode by default.
++pref("general.useragent.compatMode", 2);
+ 
+ // Updates disabled
+ pref("app.update.enabled", false);
+diff --git a/browser/confvars.sh b/browser/confvars.sh
+index 7466d0c..07b5f77 100755
+--- a/browser/confvars.sh
++++ b/browser/confvars.sh
+@@ -3,8 +3,8 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-MOZ_APP_BASENAME=Palemoon
+-MOZ_APP_VENDOR=Moonchild
++MOZ_APP_BASENAME=Mypal
++MOZ_APP_VENDOR=Feodor2
+ MOZ_UPDATER=1
+ MOZ_PHOENIX=1
+ 
+diff --git a/browser/installer/package-manifest.in b/browser/installer/package-manifest.in
+index 01082ba..109b8ab 100644
+--- a/browser/installer/package-manifest.in
++++ b/browser/installer/package-manifest.in
+@@ -149,7 +149,7 @@
+ ; [Base Browser Files]
+ #ifndef XP_UNIX
+ @BINPATH@/@MOZ_APP_NAME@.exe
+-@BINPATH@/palemoon.VisualElementsManifest.xml
++@BINPATH@/mypal.VisualElementsManifest.xml
+ @BINPATH@/browser/VisualElements/VisualElements_150.png
+ @BINPATH@/browser/VisualElements/VisualElements_70.png
+diff --git a/browser/branding/shared/locales/browserconfig.properties b/browser/branding/shared/locales/browserconfig.properties
+index 92d2371..281c3d7 100644
+--- a/browser/branding/shared/locales/browserconfig.properties
++++ b/browser/branding/shared/locales/browserconfig.properties
+@@ -3,5 +3,5 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # Do NOT localize or otherwise change these values
+-browser.startup.homepage=http://start.palemoon.org/
+-browser.startup.homepage_reset=http://start.palemoon.org/
++browser.startup.homepage=https://duckduckgo.com/?t=palemoon
++browser.startup.homepage_reset=https://duckduckgo.com/?t=palemoon
+diff --git a/browser/branding/shared/pref/preferences.inc b/browser/branding/shared/pref/preferences.inc
+index a45870b..a03e962 100644
+--- a/browser/branding/shared/pref/preferences.inc
++++ b/browser/branding/shared/pref/preferences.inc
+@@ -2,11 +2,10 @@
+ #define APO_AUS_ARGS reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%
+ 
+ // ===| General |==============================================================
++pref("startup.homepage_welcome_url","https://feodor2.github.io/Mypal/");
+ 
+-pref("startup.homepage_welcome_url","http://www.palemoon.org/firstrun.shtml");
+-
+-pref("app.vendorURL", "http://www.palemoon.org/");
+-pref("app.support.baseURL", "http://www.palemoon.org/support/");
++pref("app.vendorURL", "https://github.com/Feodor2/Mypal/");
++pref("app.support.baseURL", "https://github.com/Feodor2/Mypal/");
+ pref("browser.getdevtools.url","https://@APO_AM_URL@/external/devtools");
+ 
+ // User Interface
+ #else
+-- 
+2.8.2.windows.1
+

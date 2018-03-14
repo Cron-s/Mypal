@@ -1,0 +1,191 @@
+From b3402a4a3048a01a92bd78b3c6c43b879ddbff11 Mon Sep 17 00:00:00 2001
+From: fedor <fedor@mail.ru>
+Date: Mon, 5 Feb 2018 01:23:07 +0300
+Subject: [PATCH] Installer
+
+---
+ browser/installer/windows/nsis/installer.nsi      | 39 +++++++++++++++++++++--
+ browser/locales/en-US/installer/custom.properties |  4 +++
+ python/mozbuild/mozbuild/base.py                  |  6 ++--
+ toolkit/mozapps/installer/windows/nsis/common.nsh |  8 ++++-
+ 4 files changed, 50 insertions(+), 7 deletions(-)
+
+diff --git a/browser/installer/windows/nsis/installer.nsi b/browser/installer/windows/nsis/installer.nsi
+index 147a56c..fd478c6 100644
+--- a/browser/installer/windows/nsis/installer.nsi
++++ b/browser/installer/windows/nsis/installer.nsi
+@@ -30,6 +30,7 @@ Var AddQuickLaunchSC
+ Var AddDesktopSC
+ Var InstallMaintenanceService
+ Var PageName
++Var PrtChkb
+ 
+ ; By defining NO_STARTMENU_DIR an installer that doesn't provide an option for
+ ; an application's Start Menu PROGRAMS directory and doesn't define the
+@@ -221,7 +222,15 @@ Section "-Application" APP_IDX
+   ${CopyFilesFromDir} "$EXEDIR\core" "$INSTDIR" \
+                       "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
+                       "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
+-
++  ${If} $InstallType == ${INSTALLTYPE_PORTABLE}
++  ${If} $PrtChkb == 1
++    FileOpen $0 "$INSTDIR\browser\pmprt.mod" w
++    FileClose $0
++  ${Else}
++    FileOpen $0 "$INSTDIR\browser\pmundprt.mod" w
++    FileClose $0
++  ${EndIf}
++  ${Else}
+   ; Register DLLs
+   ; XXXrstrong - AccessibleMarshal.dll can be used by multiple applications but
+   ; is only registered for the last application installed. When the last
+@@ -472,6 +481,7 @@ Section "-Application" APP_IDX
+       ${EndIf}
+     ${EndUnless}
+   ${EndIf}
++  ${EndIf}
+ SectionEnd
+ 
+ ; Cleanup operations to perform at the end of the installation.
+@@ -743,6 +753,12 @@ Function leaveOptions
+   ${MUI_INSTALLOPTIONS_READ} $R0 "options.ini" "Field 3" "State"
+   StrCmp $R0 "1" +1 +2
+   StrCpy $InstallType ${INSTALLTYPE_CUSTOM}
++  ${MUI_INSTALLOPTIONS_READ} $R0 "options.ini" "Field 6" "State"
++  StrCmp $R0 "1" +1 +2
++  StrCpy $InstallType ${INSTALLTYPE_PORTABLE}
++  ${MUI_INSTALLOPTIONS_READ} $R0 "options.ini" "Field 7" "State"
++  StrCmp $R0 "1" +1 +2
++  StrCpy $PrtChkb 1
+ 
+   ${LeaveOptionsCommon}
+ 
+@@ -834,6 +850,7 @@ Function preSummary
+   DeleteINISec "$PLUGINSDIR\summary.ini" "Field 4"
+ 
+   ; Check if it is possible to write to HKLM
++  ${If} $InstallType != ${INSTALLTYPE_PORTABLE}
+   ClearErrors
+   WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" "Write Test"
+   ${Unless} ${Errors}
+@@ -880,6 +897,7 @@ Function preSummary
+     WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Left   "0"
+     WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Right  "-1"
+   ${EndIf}
++  ${EndIf}
+ 
+   !insertmacro MUI_HEADER_TEXT "$(SUMMARY_PAGE_TITLE)" "$(SUMMARY_PAGE_SUBTITLE)"
+ 
+@@ -933,7 +951,7 @@ Function .onInit
+   !insertmacro InitInstallOptionsFile "components.ini"
+   !insertmacro InitInstallOptionsFile "summary.ini"
+ 
+-  WriteINIStr "$PLUGINSDIR\options.ini" "Settings" NumFields "5"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Settings" NumFields "7"
+ 
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 1" Type   "label"
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 1" Text   "$(OPTIONS_SUMMARY)"
+@@ -959,6 +977,14 @@ Function .onInit
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 3" Bottom "65"
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 3" State  "0"
+ 
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 6" Type   "RadioButton"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 6" Text   "$(OPTION_PORTABLE_RADIO)"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 6" Left   "0"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 6" Right  "-1"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 6" Top    "85"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 6" Bottom "95"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 6" State  "0"
++
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 4" Type   "label"
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 4" Text   "$(OPTION_STANDARD_DESC)"
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 4" Left   "15"
+@@ -973,6 +999,15 @@ Function .onInit
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 5" Top    "67"
+   WriteINIStr "$PLUGINSDIR\options.ini" "Field 5" Bottom "87"
+ 
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 7" Type   "checkbox"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 7" Text   "$(OPTION_PORTABLE_DESC)"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 7" Left   "15"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 7" Right  "-1"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 7" Top    "97"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 7" Bottom "117"
++  WriteINIStr "$PLUGINSDIR\options.ini" "Field 7" State  "1"
++
++
+   ; Setup the shortcuts.ini file for the Custom Shortcuts Page
+   ; Don't offer to install the quick launch shortcut on Windows 7
+   ${If} ${AtLeastWin7}
+diff --git a/browser/locales/en-US/installer/custom.properties b/browser/locales/en-US/installer/custom.properties
+index ef29b1e..d445817 100644
+--- a/browser/locales/en-US/installer/custom.properties
++++ b/browser/locales/en-US/installer/custom.properties
+@@ -76,6 +76,10 @@ OPTION_STANDARD_RADIO=&Standard
+ OPTION_CUSTOM_DESC=You may choose individual options to be installed. Recommended for experienced users.
+ OPTION_CUSTOM_RADIO=&Custom
+ 
++# Two lines
++OPTION_PORTABLE_DESC=Such a portable, default browser feature disabled (no-remote).
++OPTION_PORTABLE_RADIO=&Portable
++
+ # LOCALIZATION NOTE:
+ # The following text replaces the Install button text on the summary page.
+ # Verify that the access key for InstallBtn (in override.properties) and
+diff --git a/python/mozbuild/mozbuild/base.py b/python/mozbuild/mozbuild/base.py
+index fed86a9..f1e51b3 100644
+--- a/python/mozbuild/mozbuild/base.py
++++ b/python/mozbuild/mozbuild/base.py
+@@ -177,13 +177,11 @@ class MozbuildObject(ProcessExecutionMixin):
+                 config_topobjdir = os.path.join(config_topobjdir, current_project)
+ 
+             _config_topobjdir = config_topobjdir
++            if os.name in ('nt', 'ce'):
++                _config_topobjdir = topobjdir
+             if not samepath(topobjdir, _config_topobjdir):
+                 raise ObjdirMismatchException(topobjdir, _config_topobjdir)
+ 
+-        topobjdir = topobjdir or config_topobjdir
+-        if topobjdir:
+-            topobjdir = os.path.normpath(topobjdir)
+-
+             if topsrcdir == topobjdir:
+                 raise BadEnvironmentException('The object directory appears '
+                     'to be the same as your source directory (%s). This build '
+diff --git a/toolkit/mozapps/installer/windows/nsis/common.nsh b/toolkit/mozapps/installer/windows/nsis/common.nsh
+index 1e2735a..caf0ed9 100644
+--- a/toolkit/mozapps/installer/windows/nsis/common.nsh
++++ b/toolkit/mozapps/installer/windows/nsis/common.nsh
+@@ -4964,6 +4964,10 @@
+   !define INSTALLTYPE_CUSTOM    2
+ !endif
+ 
++!ifndef INSTALLTYPE_PORTABLE
++  !define INSTALLTYPE_PORTABLE  3
++!endif
++
+ /**
+  * Checks whether to display the current page (e.g. if not performing a custom
+  * install don't display the custom pages).
+@@ -5131,9 +5135,10 @@
+       !endif
+ 
+       ${GetParameters} $R8
+-
++      ${If} $InstallType != ${INSTALLTYPE_PORTABLE}
+       ; Require elevation if the user can elevate
+       ${ElevateUAC}
++      ${EndIf}
+ 
+       ${If} $R8 != ""
+         ; Default install type
+@@ -5614,6 +5619,7 @@
+       Push $R9
+ 
+       IntCmp $InstallType ${INSTALLTYPE_CUSTOM} end +1 +1
++      IntCmp $InstallType ${INSTALLTYPE_PORTABLE} end +1 +1
+       ${CanWriteToInstallDir} $R9
+       StrCmp "$R9" "false" end +1
+       ${CheckDiskSpace} $R9
+-- 
+2.8.2.windows.1
+

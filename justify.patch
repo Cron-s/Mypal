@@ -1,0 +1,844 @@
+From 8baf3ee0b5db6100cb508ba6eb9e72d894390a23 Mon Sep 17 00:00:00 2001
+From: fedor <fedor@mail.ru>
+Date: Tue, 13 Mar 2018 04:52:15 +0300
+Subject: [PATCH] justify
+
+---
+ caps/nsScriptSecurityManager.cpp              |  36 +++-
+ dom/base/nsObjectLoadingContent.cpp           | 115 ------------
+ dom/base/nsObjectLoadingContent.h             |  24 ---
+ layout/style/nsCSSKeywordList.h               |   6 +
+ layout/style/nsCSSParser.cpp                  |  87 +++++++++
+ layout/style/nsCSSPropList.h                  |  10 ++
+ layout/style/nsCSSProps.cpp                   |  62 +++++++
+ layout/style/nsCSSProps.h                     |  10 +-
+ layout/style/nsCSSValue.cpp                   |  26 +++
+ layout/style/nsCSSValue.h                     |   3 +
+ layout/style/nsComputedDOMStyle.cpp           |  12 ++
+ layout/style/nsComputedDOMStyle.h             |  11 +-
+ layout/style/nsComputedDOMStylePropertyList.h |   1 +
+ layout/style/nsRuleNode.cpp                   |  18 ++
+ layout/style/nsStyleConsts.h                  |  47 +++++
+ layout/style/nsStyleStruct.cpp                |  27 ++-
+ layout/style/nsStyleStruct.h                  | 245 ++++++++++++++------------
+ 17 files changed, 473 insertions(+), 267 deletions(-)
+
+diff --git a/layout/style/nsCSSKeywordList.h b/layout/style/nsCSSKeywordList.h
+index 28ecc00..d9525ec 100644
+--- a/layout/style/nsCSSKeywordList.h
++++ b/layout/style/nsCSSKeywordList.h
+@@ -331,7 +331,9 @@ CSS_KEY(korean-hanja-informal, korean_hanja_informal)
+ CSS_KEY(landscape, landscape)
+ CSS_KEY(large, large)
+ CSS_KEY(larger, larger)
++CSS_KEY(last-baseline, last_baseline)
+ CSS_KEY(left, left)
++CSS_KEY(legacy, legacy)
+ CSS_KEY(lighten, lighten)
+ CSS_KEY(lighter, lighter)
+ CSS_KEY(line-through, line_through)
+@@ -448,6 +450,7 @@ CSS_KEY(ruby-text-container, ruby_text_container)
+ CSS_KEY(running, running)
+ CSS_KEY(s, s)
+ CSS_KEY(s-resize, s_resize)
++CSS_KEY(safe, safe)
+ CSS_KEY(saturate, saturate)
+ CSS_KEY(saturation, saturation)
+ CSS_KEY(scale, scale)
+@@ -467,6 +470,8 @@ CSS_KEY(select-all, select_all)
+ CSS_KEY(select-before, select_before)
+ CSS_KEY(select-menu, select_menu)
+ CSS_KEY(select-same, select_same)
++CSS_KEY(self-end, self_end)
++CSS_KEY(self-start, self_start)
+ CSS_KEY(semi-condensed, semi_condensed)
+ CSS_KEY(semi-expanded, semi_expanded)
+ CSS_KEY(separate, separate)
+@@ -494,6 +499,7 @@ CSS_KEY(soft-light, soft_light)
+ CSS_KEY(solid, solid)
+ CSS_KEY(space-around, space_around)
+ CSS_KEY(space-between, space_between)
++CSS_KEY(space-evenly, space_evenly)
+ CSS_KEY(span, span)
+ CSS_KEY(spell-out, spell_out)
+ CSS_KEY(square, square)
+diff --git a/layout/style/nsCSSParser.cpp b/layout/style/nsCSSParser.cpp
+index 2398c84..3e9eb3f 100644
+--- a/layout/style/nsCSSParser.cpp
++++ b/layout/style/nsCSSParser.cpp
+@@ -763,6 +763,11 @@ protected:
+   bool ParseGridColumnRow(nsCSSProperty aStartPropID,
+                           nsCSSProperty aEndPropID);
+   bool ParseGridArea();
++ 
++  // parsing 'align/justify-items/self' from the css-align spec
++  bool ParseAlignJustifyPosition(nsCSSValue& aResult,
++                                 const KTableValue aTable[]);
++  bool ParseJustifyItems();
+ 
+   // for 'clip' and '-moz-image-region'
+   bool ParseRect(nsCSSProperty aPropID);
+@@ -925,6 +930,19 @@ protected:
+     return ParseNonNegativeVariant(aValue, VARIANT_INTEGER, nullptr);
+   }
+ 
++  // Variant parsing methods that are guaranteed to UngetToken any token
++  // consumed on failure
++  bool ParseSingleTokenVariant(nsCSSValue& aValue,
++                               int32_t aVariantMask,
++                               const KTableValue aKeywordTable[])
++  {
++    MOZ_ASSERT(!(aVariantMask & VARIANT_MULTIPLE_TOKENS),
++               "use ParseVariant for variants in VARIANT_MULTIPLE_TOKENS");
++    CSSParseResult result = (CSSParseResult)ParseVariant(aValue, aVariantMask, aKeywordTable);
++    MOZ_ASSERT(result != CSSParseResult::Error);
++    return result == CSSParseResult::Ok;
++  }
++
+   // http://dev.w3.org/csswg/css-values/#custom-idents
+   // Parse an identifier that is none of:
+   // * a CSS-wide keyword
+@@ -8811,6 +8829,73 @@ CSSParserImpl::ParseGridArea()
+   return true;
+ }
+ 
++// [ $aTable && <overflow-position>? ] ?
++// $aTable is for <content-position> or <self-position>
++bool
++CSSParserImpl::ParseAlignJustifyPosition(nsCSSValue& aResult,
++                                         const KTableValue aTable[])
++{
++  nsCSSValue pos, overflowPos;
++  int32_t value = 0;
++  if (ParseEnum(pos, aTable)) {
++    value = pos.GetIntValue();
++    if (ParseEnum(overflowPos, nsCSSProps::kAlignOverflowPosition)) {
++      value |= overflowPos.GetIntValue();
++    }
++    aResult.SetIntValue(value, eCSSUnit_Enumerated);
++    return true;
++  }
++  if (ParseEnum(overflowPos, nsCSSProps::kAlignOverflowPosition)) {
++    if (ParseEnum(pos, aTable)) {
++      aResult.SetIntValue(pos.GetIntValue() | overflowPos.GetIntValue(),
++                          eCSSUnit_Enumerated);
++      return true;
++    }
++    return false; // <overflow-position> must be followed by a value in $table
++  }
++  return true;
++}
++
++// auto | stretch | <baseline-position> |
++// [ <self-position> && <overflow-position>? ] |
++// [ legacy && [ left | right | center ] ]
++bool
++CSSParserImpl::ParseJustifyItems()
++{
++  nsCSSValue value;
++  if (!ParseSingleTokenVariant(value, VARIANT_INHERIT, nullptr)) {
++    if (MOZ_UNLIKELY(ParseEnum(value, nsCSSProps::kAlignLegacy))) {
++      nsCSSValue legacy;
++      if (!ParseEnum(legacy, nsCSSProps::kAlignLegacyPosition)) {
++        return false; // leading 'legacy' not followed by 'left' etc is an error
++      }
++      value.SetIntValue(value.GetIntValue() | legacy.GetIntValue(),
++                        eCSSUnit_Enumerated);
++    } else {
++      if (!ParseEnum(value, nsCSSProps::kAlignAutoStretchBaseline)) {
++        if (!ParseAlignJustifyPosition(value, nsCSSProps::kAlignSelfPosition) ||
++            value.GetUnit() == eCSSUnit_Null) {
++          return false;
++        }
++        // check for a trailing 'legacy' after 'left' etc
++        auto val = value.GetIntValue();
++        if (val == NS_STYLE_JUSTIFY_CENTER ||
++            val == NS_STYLE_JUSTIFY_LEFT   ||
++            val == NS_STYLE_JUSTIFY_RIGHT) {
++          nsCSSValue legacy;
++          if (ParseEnum(legacy, nsCSSProps::kAlignLegacy)) {
++            value.SetIntValue(val | legacy.GetIntValue(), eCSSUnit_Enumerated);
++          }
++        }
++      }
++    }
++  }
++  AppendValue(eCSSProperty_justify_items, value);
++  return true;
++}
++
++
++
+ // <color-stop> : <color> [ <percentage> | <length> ]?
+ bool
+ CSSParserImpl::ParseColorStop(nsCSSValueGradient* aGradient)
+@@ -9847,6 +9932,8 @@ CSSParserImpl::ParsePropertyByFunction(nsCSSProperty aPropID)
+     return ParseGridArea();
+   case eCSSProperty_image_region:
+     return ParseRect(eCSSProperty_image_region);
++  case eCSSProperty_justify_items:
++    return ParseJustifyItems();
+   case eCSSProperty_list_style:
+     return ParseListStyle();
+   case eCSSProperty_margin:
+diff --git a/layout/style/nsCSSPropList.h b/layout/style/nsCSSPropList.h
+index 182029b..66ccffe 100644
+--- a/layout/style/nsCSSPropList.h
++++ b/layout/style/nsCSSPropList.h
+@@ -1704,6 +1704,16 @@ CSS_PROP_POSITION(
+     kJustifyContentKTable,
+     offsetof(nsStylePosition, mJustifyContent),
+     eStyleAnimType_EnumU8)
++CSS_PROP_POSITION(
++    justify-items,
++    justify_items,
++    JustifyItems,
++    CSS_PROPERTY_PARSE_FUNCTION,
++    "",
++    0,
++    nullptr,
++    CSS_PROP_NO_OFFSET,
++    eStyleAnimType_None)
+ CSS_PROP_DISPLAY(
+     float,
+     float,
+diff --git a/layout/style/nsCSSProps.cpp b/layout/style/nsCSSProps.cpp
+index 27a897d..e0a2ad9 100644
+--- a/layout/style/nsCSSProps.cpp
++++ b/layout/style/nsCSSProps.cpp
+@@ -1137,6 +1137,68 @@ const KTableValue nsCSSProps::kEmptyCellsKTable[] = {
+   eCSSKeyword_UNKNOWN,-1
+ };
+ 
++const KTableValue nsCSSProps::kAlignAllKeywords[] = {
++  eCSSKeyword_auto,          NS_STYLE_ALIGN_AUTO,
++  eCSSKeyword_start,         NS_STYLE_ALIGN_START,
++  eCSSKeyword_end,           NS_STYLE_ALIGN_END,
++  eCSSKeyword_flex_start,    NS_STYLE_ALIGN_FLEX_START,
++  eCSSKeyword_flex_end,      NS_STYLE_ALIGN_FLEX_END,
++  eCSSKeyword_center,        NS_STYLE_ALIGN_CENTER,
++  eCSSKeyword_left,          NS_STYLE_ALIGN_LEFT,
++  eCSSKeyword_right,         NS_STYLE_ALIGN_RIGHT,
++  eCSSKeyword_baseline,      NS_STYLE_ALIGN_BASELINE,
++  eCSSKeyword_last_baseline, NS_STYLE_ALIGN_LAST_BASELINE,
++  eCSSKeyword_stretch,       NS_STYLE_ALIGN_STRETCH,
++  eCSSKeyword_self_start,    NS_STYLE_ALIGN_SELF_START,
++  eCSSKeyword_self_end,      NS_STYLE_ALIGN_SELF_END,
++  eCSSKeyword_space_between, NS_STYLE_ALIGN_SPACE_BETWEEN,
++  eCSSKeyword_space_around,  NS_STYLE_ALIGN_SPACE_AROUND,
++  eCSSKeyword_space_evenly,  NS_STYLE_ALIGN_SPACE_EVENLY,
++  eCSSKeyword_legacy,        NS_STYLE_ALIGN_LEGACY,
++  eCSSKeyword_safe,          NS_STYLE_ALIGN_SAFE,
++  eCSSKeyword_unsafe,        NS_STYLE_ALIGN_UNSAFE,
++  eCSSKeyword_UNKNOWN,-1
++};
++
++const KTableValue nsCSSProps::kAlignOverflowPosition[] = {
++  eCSSKeyword_unsafe,          NS_STYLE_ALIGN_UNSAFE,
++  eCSSKeyword_safe,          NS_STYLE_ALIGN_SAFE,
++  eCSSKeyword_UNKNOWN,-1
++};
++
++const KTableValue nsCSSProps::kAlignSelfPosition[] = {
++  eCSSKeyword_start,         NS_STYLE_ALIGN_START,
++  eCSSKeyword_end,           NS_STYLE_ALIGN_END,
++  eCSSKeyword_flex_start,    NS_STYLE_ALIGN_FLEX_START,
++  eCSSKeyword_flex_end,      NS_STYLE_ALIGN_FLEX_END,
++  eCSSKeyword_center,        NS_STYLE_ALIGN_CENTER,
++  eCSSKeyword_left,          NS_STYLE_ALIGN_LEFT,
++  eCSSKeyword_right,         NS_STYLE_ALIGN_RIGHT,
++  eCSSKeyword_self_start,    NS_STYLE_ALIGN_SELF_START,
++  eCSSKeyword_self_end,      NS_STYLE_ALIGN_SELF_END,
++  eCSSKeyword_UNKNOWN,-1
++};
++
++const KTableValue nsCSSProps::kAlignLegacy[] = {
++  eCSSKeyword_legacy,        NS_STYLE_ALIGN_LEGACY,
++  eCSSKeyword_UNKNOWN,-1
++};
++
++const KTableValue nsCSSProps::kAlignLegacyPosition[] = {
++  eCSSKeyword_center,        NS_STYLE_ALIGN_CENTER,
++  eCSSKeyword_left,          NS_STYLE_ALIGN_LEFT,
++  eCSSKeyword_right,         NS_STYLE_ALIGN_RIGHT,
++  eCSSKeyword_UNKNOWN,-1
++};
++
++const KTableValue nsCSSProps::kAlignAutoStretchBaseline[] = {
++  eCSSKeyword_auto,          NS_STYLE_ALIGN_AUTO,
++  eCSSKeyword_stretch,       NS_STYLE_ALIGN_STRETCH,
++  eCSSKeyword_baseline,      NS_STYLE_ALIGN_BASELINE,
++  eCSSKeyword_last_baseline, NS_STYLE_ALIGN_LAST_BASELINE,
++  eCSSKeyword_UNKNOWN,-1
++};
++
+ const KTableValue nsCSSProps::kAlignContentKTable[] = {
+   eCSSKeyword_flex_start,    NS_STYLE_ALIGN_CONTENT_FLEX_START,
+   eCSSKeyword_flex_end,      NS_STYLE_ALIGN_CONTENT_FLEX_END,
+diff --git a/layout/style/nsCSSProps.h b/layout/style/nsCSSProps.h
+index 018bda8..53e7e5a 100644
+--- a/layout/style/nsCSSProps.h
++++ b/layout/style/nsCSSProps.h
+@@ -608,12 +608,20 @@ public:
+   static KTableValue kDisplayKTable[];
+   static const KTableValue kElevationKTable[];
+   static const KTableValue kEmptyCellsKTable[];
++  // -- tables for the align-/justify-content/items/self properties --
++  static const KTableValue kAlignAllKeywords[];
++  static const KTableValue kAlignOverflowPosition[]; // <overflow-position>
++  static const KTableValue kAlignSelfPosition[];     // <self-position>
++  static const KTableValue kAlignLegacy[];           // 'legacy'
++  static const KTableValue kAlignLegacyPosition[];   // 'left/right/center'
++  static const KTableValue kAlignAutoStretchBaseline[]; // 'auto/stretch/baseline/last-baseline'
+   static const KTableValue kAlignContentKTable[];
+   static const KTableValue kAlignItemsKTable[];
+   static const KTableValue kAlignSelfKTable[];
++  static const KTableValue kJustifyContentKTable[];
++  // ------------------------------------------------------------------
+   static const KTableValue kFlexDirectionKTable[];
+   static const KTableValue kFlexWrapKTable[];
+-  static const KTableValue kJustifyContentKTable[];
+   static const KTableValue kFloatKTable[];
+   static const KTableValue kFloatEdgeKTable[];
+   static const KTableValue kFontKTable[];
+diff --git a/layout/style/nsCSSValue.cpp b/layout/style/nsCSSValue.cpp
+index 8e01491..bcc37a9 100644
+--- a/layout/style/nsCSSValue.cpp
++++ b/layout/style/nsCSSValue.cpp
+@@ -1009,6 +1009,28 @@ nsCSSValue::AppendInsetToString(nsCSSProperty aProperty, nsAString& aResult,
+   }
+ }
+ 
++/* static */ void
++nsCSSValue::AppendAlignJustifyValueToString(int32_t aValue, nsAString& aResult)
++{
++  auto legacy = aValue & NS_STYLE_ALIGN_LEGACY;
++  if (legacy) {
++    aValue &= ~legacy;
++    aResult.AppendLiteral("legacy ");
++  }
++  auto overflowPos = aValue & (NS_STYLE_ALIGN_SAFE | NS_STYLE_ALIGN_UNSAFE);
++  aValue &= ~overflowPos;
++  MOZ_ASSERT(!(aValue & NS_STYLE_ALIGN_FLAG_BITS),
++             "unknown bits in align/justify value");
++  const auto& kwtable(nsCSSProps::kAlignAllKeywords);
++  AppendASCIItoUTF16(nsCSSProps::ValueToKeyword(aValue, kwtable), aResult);
++  if (MOZ_UNLIKELY(overflowPos != 0)) {
++    MOZ_ASSERT(legacy == 0, "'legacy' together with <overflow-position>");
++    aResult.Append(' ');
++    AppendASCIItoUTF16(nsCSSProps::ValueToKeyword(overflowPos, kwtable),
++                       aResult);
++  }
++}
++
+ void
+ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult,
+                            Serialization aSerialization) const
+@@ -1293,6 +1315,10 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult,
+                          aResult);
+       break;
+ 
++    case eCSSProperty_justify_items:
++      AppendAlignJustifyValueToString(intValue, aResult);
++      break;
++
+     default:
+       const nsAFlatCString& name = nsCSSProps::LookupPropertyValue(aProperty, intValue);
+       AppendASCIItoUTF16(name, aResult);
+diff --git a/layout/style/nsCSSValue.h b/layout/style/nsCSSValue.h
+index a03b036..2cd636d 100644
+--- a/layout/style/nsCSSValue.h
++++ b/layout/style/nsCSSValue.h
+@@ -725,6 +725,9 @@ public:
+                                  const nsCSSValue* aValues[],
+                                  nsAString& aResult,
+                                  Serialization aValueSerialization);
++  static void
++  AppendAlignJustifyValueToString(int32_t aValue, nsAString& aResult);
++
+ private:
+   static const char16_t* GetBufferValue(nsStringBuffer* aBuffer) {
+     return static_cast<char16_t*>(aBuffer->Data());
+diff --git a/layout/style/nsComputedDOMStyle.cpp b/layout/style/nsComputedDOMStyle.cpp
+index d1b16a5..e538ece 100644
+--- a/layout/style/nsComputedDOMStyle.cpp
++++ b/layout/style/nsComputedDOMStyle.cpp
+@@ -3803,6 +3803,18 @@ nsComputedDOMStyle::DoGetJustifyContent()
+ }
+ 
+ CSSValue*
++nsComputedDOMStyle::DoGetJustifyItems()
++{
++  nsROCSSPrimitiveValue* val = new nsROCSSPrimitiveValue;
++  nsAutoString str;
++  auto justify = StylePosition()->
++    ComputedJustifyItems(StyleDisplay(), mStyleContextHolder->GetParent());
++  nsCSSValue::AppendAlignJustifyValueToString(justify, str);
++  val->SetString(str);
++  return val;
++}
++
++CSSValue*
+ nsComputedDOMStyle::DoGetFloatEdge()
+ {
+   nsROCSSPrimitiveValue *val = new nsROCSSPrimitiveValue;
+diff --git a/layout/style/nsComputedDOMStyle.h b/layout/style/nsComputedDOMStyle.h
+index a49d2d5..bf1b74c 100644
+--- a/layout/style/nsComputedDOMStyle.h
++++ b/layout/style/nsComputedDOMStyle.h
+@@ -470,16 +470,21 @@ private:
+   mozilla::dom::CSSValue* DoGetAnimationPlayState();
+ 
+   /* CSS Flexbox properties */
+-  mozilla::dom::CSSValue* DoGetAlignContent();
+-  mozilla::dom::CSSValue* DoGetAlignItems();
+-  mozilla::dom::CSSValue* DoGetAlignSelf();
+   mozilla::dom::CSSValue* DoGetFlexBasis();
+   mozilla::dom::CSSValue* DoGetFlexDirection();
+   mozilla::dom::CSSValue* DoGetFlexGrow();
+   mozilla::dom::CSSValue* DoGetFlexShrink();
+   mozilla::dom::CSSValue* DoGetFlexWrap();
++
++  /* CSS Flexbox/Grid properties */
+   mozilla::dom::CSSValue* DoGetOrder();
++
++  /* CSS Box Alignment properties */
++  mozilla::dom::CSSValue* DoGetAlignContent();
++  mozilla::dom::CSSValue* DoGetAlignItems();
++  mozilla::dom::CSSValue* DoGetAlignSelf();
+   mozilla::dom::CSSValue* DoGetJustifyContent();
++  mozilla::dom::CSSValue* DoGetJustifyItems();
+ 
+   /* SVG properties */
+   mozilla::dom::CSSValue* DoGetFill();
+diff --git a/layout/style/nsComputedDOMStylePropertyList.h b/layout/style/nsComputedDOMStylePropertyList.h
+index b50c2af..3b7a41c 100644
+--- a/layout/style/nsComputedDOMStylePropertyList.h
++++ b/layout/style/nsComputedDOMStylePropertyList.h
+@@ -147,6 +147,7 @@ COMPUTED_STYLE_PROP(height,                        Height)
+ COMPUTED_STYLE_PROP(image_orientation,             ImageOrientation)
+ COMPUTED_STYLE_PROP(ime_mode,                      IMEMode)
+ COMPUTED_STYLE_PROP(isolation,                     Isolation)
++COMPUTED_STYLE_PROP(justify_items,                 JustifyItems)
+ COMPUTED_STYLE_PROP(justify_content,               JustifyContent)
+ COMPUTED_STYLE_PROP(left,                          Left)
+ COMPUTED_STYLE_PROP(letter_spacing,                LetterSpacing)
+diff --git a/layout/style/nsRuleNode.cpp b/layout/style/nsRuleNode.cpp
+index c3b016d..17a7f28 100644
+--- a/layout/style/nsRuleNode.cpp
++++ b/layout/style/nsRuleNode.cpp
+@@ -7569,6 +7569,24 @@ nsRuleNode::ComputePositionData(void* aStartStruct,
+                 NS_STYLE_ALIGN_SELF_AUTO, // initial == auto
+                 0, 0, 0, 0);
+   }
++  // justify-items: enum, inherit, initial
++  const auto& justifyItemsValue = *aRuleData->ValueForJustifyItems();
++  if (MOZ_UNLIKELY(justifyItemsValue.GetUnit() == eCSSUnit_Inherit)) {
++    if (MOZ_LIKELY(parentContext)) {
++      pos->mJustifyItems =
++        parentPos->ComputedJustifyItems(parentContext->StyleDisplay(),
++                                        parentContext);
++    } else {
++      pos->mJustifyItems = NS_STYLE_JUSTIFY_AUTO;
++    }
++    canStoreInRuleTree = false;
++  } else {
++    SetDiscrete(justifyItemsValue,
++                pos->mJustifyItems, canStoreInRuleTree,
++                SETDSC_ENUMERATED | SETDSC_UNSET_INITIAL,
++                parentPos->mJustifyItems, // unused, we handle 'inherit' above
++                NS_STYLE_JUSTIFY_AUTO, 0, 0, 0, 0);
++  }
+ 
+   // flex-basis: auto, length, percent, enum, calc, inherit, initial
+   // (Note: The flags here should match those used for 'width' property above.)
+diff --git a/layout/style/nsStyleConsts.h b/layout/style/nsStyleConsts.h
+index d81cd51..81ac55d 100644
+--- a/layout/style/nsStyleConsts.h
++++ b/layout/style/nsStyleConsts.h
+@@ -447,6 +447,53 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
+ #define NS_STYLE_DISPLAY_RUBY_TEXT_CONTAINER    37
+ #define NS_STYLE_DISPLAY_CONTENTS               38
+ 
++// Shared constants for all align/justify properties (nsStylePosition):
++#define NS_STYLE_ALIGN_AUTO             0
++#define NS_STYLE_ALIGN_START            1
++#define NS_STYLE_ALIGN_END              2
++#define NS_STYLE_ALIGN_FLEX_START       3
++#define NS_STYLE_ALIGN_FLEX_END         4
++#define NS_STYLE_ALIGN_CENTER           5
++#define NS_STYLE_ALIGN_LEFT             6
++#define NS_STYLE_ALIGN_RIGHT            7
++#define NS_STYLE_ALIGN_BASELINE         8
++#define NS_STYLE_ALIGN_LAST_BASELINE    9
++#define NS_STYLE_ALIGN_STRETCH          10
++#define NS_STYLE_ALIGN_SELF_START       11
++#define NS_STYLE_ALIGN_SELF_END         12
++#define NS_STYLE_ALIGN_SPACE_BETWEEN    13
++#define NS_STYLE_ALIGN_SPACE_AROUND     14
++#define NS_STYLE_ALIGN_SPACE_EVENLY     15
++#define NS_STYLE_ALIGN_LEGACY        0x10 // mutually exclusive w. SAFE & TRUE
++#define NS_STYLE_ALIGN_SAFE          0x20
++#define NS_STYLE_ALIGN_UNSAFE        0x40 // mutually exclusive w. SAFE
++#define NS_STYLE_ALIGN_FLAG_BITS     0xF0
++#define NS_STYLE_ALIGN_ALL_BITS      0xFF
++#define NS_STYLE_ALIGN_ALL_SHIFT        8
++
++#define NS_STYLE_JUSTIFY_AUTO             NS_STYLE_ALIGN_AUTO
++#define NS_STYLE_JUSTIFY_START            NS_STYLE_ALIGN_START
++#define NS_STYLE_JUSTIFY_END              NS_STYLE_ALIGN_END
++#define NS_STYLE_JUSTIFY_FLEX_START       NS_STYLE_ALIGN_FLEX_START
++#define NS_STYLE_JUSTIFY_FLEX_END         NS_STYLE_ALIGN_FLEX_END
++#define NS_STYLE_JUSTIFY_CENTER           NS_STYLE_ALIGN_CENTER
++#define NS_STYLE_JUSTIFY_LEFT             NS_STYLE_ALIGN_LEFT
++#define NS_STYLE_JUSTIFY_RIGHT            NS_STYLE_ALIGN_RIGHT
++#define NS_STYLE_JUSTIFY_BASELINE         NS_STYLE_ALIGN_BASELINE
++#define NS_STYLE_JUSTIFY_LAST_BASELINE    NS_STYLE_ALIGN_LAST_BASELINE
++#define NS_STYLE_JUSTIFY_STRETCH          NS_STYLE_ALIGN_STRETCH
++#define NS_STYLE_JUSTIFY_SELF_START       NS_STYLE_ALIGN_SELF_START
++#define NS_STYLE_JUSTIFY_SELF_END         NS_STYLE_ALIGN_SELF_END
++#define NS_STYLE_JUSTIFY_SPACE_BETWEEN    NS_STYLE_ALIGN_SPACE_BETWEEN
++#define NS_STYLE_JUSTIFY_SPACE_AROUND     NS_STYLE_ALIGN_SPACE_AROUND
++#define NS_STYLE_JUSTIFY_SPACE_EVENLY     NS_STYLE_ALIGN_SPACE_EVENLY
++#define NS_STYLE_JUSTIFY_LEGACY           NS_STYLE_ALIGN_LEGACY
++#define NS_STYLE_JUSTIFY_SAFE             NS_STYLE_ALIGN_SAFE
++#define NS_STYLE_JUSTIFY_UNSAFE           NS_STYLE_ALIGN_UNSAFE
++#define NS_STYLE_JUSTIFY_FLAG_BITS        NS_STYLE_ALIGN_FLAG_BITS
++#define NS_STYLE_JUSTIFY_ALL_BITS         NS_STYLE_ALIGN_ALL_BITS
++#define NS_STYLE_JUSTIFY_ALL_SHIFT        NS_STYLE_ALIGN_ALL_SHIFT
++
+ // See nsStylePosition
+ #define NS_STYLE_ALIGN_CONTENT_FLEX_START       0
+ #define NS_STYLE_ALIGN_CONTENT_FLEX_END         1
+diff --git a/layout/style/nsStyleStruct.cpp b/layout/style/nsStyleStruct.cpp
+index 785ac10..f58a019 100644
+--- a/layout/style/nsStyleStruct.cpp
++++ b/layout/style/nsStyleStruct.cpp
+@@ -1419,6 +1419,7 @@ nsStylePosition::nsStylePosition(void)
+   mAlignContent = NS_STYLE_ALIGN_CONTENT_STRETCH;
+   mAlignItems = NS_STYLE_ALIGN_ITEMS_INITIAL_VALUE;
+   mAlignSelf = NS_STYLE_ALIGN_SELF_AUTO;
++  mJustifyItems = NS_STYLE_JUSTIFY_AUTO;
+   mFlexDirection = NS_STYLE_FLEX_DIRECTION_ROW;
+   mFlexWrap = NS_STYLE_FLEX_WRAP_NOWRAP;
+   mJustifyContent = NS_STYLE_JUSTIFY_CONTENT_FLEX_START;
+@@ -1458,6 +1459,7 @@ nsStylePosition::nsStylePosition(const nsStylePosition& aSource)
+   , mAlignContent(aSource.mAlignContent)
+   , mAlignItems(aSource.mAlignItems)
+   , mAlignSelf(aSource.mAlignSelf)
++  , mJustifyItems(aSource.mJustifyItems)
+   , mFlexDirection(aSource.mFlexDirection)
+   , mFlexWrap(aSource.mFlexWrap)
+   , mJustifyContent(aSource.mJustifyContent)
+@@ -1568,9 +1570,10 @@ nsChangeHint nsStylePosition::CalcDifference(const nsStylePosition& aOther) cons
+     return NS_CombineHint(hint, nsChangeHint_AllReflowHints);
+   }
+ 
+-  // Changing justify-content on a flexbox might affect the positioning of its
+-  // children, but it won't affect any sizing.
+-  if (mJustifyContent != aOther.mJustifyContent) {
++  // Changing 'justify-content/items' might affect the positioning,
++  // but it won't affect any sizing.
++  if (mJustifyContent != aOther.mJustifyContent ||
++      mJustifyItems != aOther.mJustifyItems) {
+     NS_UpdateHint(hint, nsChangeHint_NeedReflow);
+   }
+ 
+@@ -1638,6 +1641,24 @@ nsStylePosition::WidthCoordDependsOnContainer(const nsStyleCoord &aCoord)
+           (aCoord.GetIntValue() == NS_STYLE_WIDTH_FIT_CONTENT ||
+            aCoord.GetIntValue() == NS_STYLE_WIDTH_AVAILABLE));
+ }
++uint8_t
++nsStylePosition::ComputedJustifyItems(const nsStyleDisplay* aDisplay,
++                                      nsStyleContext* aParent) const
++{
++  if (mJustifyItems != NS_STYLE_JUSTIFY_AUTO) {
++    return mJustifyItems;
++  }
++  if (MOZ_LIKELY(aParent)) {
++    auto inheritedJustifyItems =
++      aParent->StylePosition()->ComputedJustifyItems(aParent->StyleDisplay(),
++                                                     aParent->GetParent());
++    if (inheritedJustifyItems & NS_STYLE_JUSTIFY_LEGACY) {
++      return inheritedJustifyItems;
++    }
++  }
++  return aDisplay->IsFlexOrGridDisplayType() ? NS_STYLE_JUSTIFY_STRETCH
++                                             : NS_STYLE_JUSTIFY_START;
++}
+ 
+ // --------------------
+ // nsStyleTable
+diff --git a/layout/style/nsStyleStruct.h b/layout/style/nsStyleStruct.h
+index 854d57e..71e3f37 100644
+--- a/layout/style/nsStyleStruct.h
++++ b/layout/style/nsStyleStruct.h
+@@ -31,6 +31,7 @@
+ 
+ class nsIFrame;
+ class nsIURI;
++class nsStyleContext;
+ class imgIContainer;
+ 
+ // Includes nsStyleStructID.
+@@ -1317,123 +1318,6 @@ struct nsStyleGridLine {
+   }
+ };
+ 
+-struct nsStylePosition {
+-  nsStylePosition(void);
+-  nsStylePosition(const nsStylePosition& aOther);
+-  ~nsStylePosition(void);
+-
+-  void* operator new(size_t sz, nsPresContext* aContext) CPP_THROW_NEW {
+-    return aContext->PresShell()->
+-      AllocateByObjectID(nsPresArena::nsStylePosition_id, sz);
+-  }
+-  void Destroy(nsPresContext* aContext) {
+-    this->~nsStylePosition();
+-    aContext->PresShell()->
+-      FreeByObjectID(nsPresArena::nsStylePosition_id, this);
+-  }
+-
+-  nsChangeHint CalcDifference(const nsStylePosition& aOther) const;
+-  static nsChangeHint MaxDifference() {
+-    return NS_CombineHint(NS_STYLE_HINT_REFLOW,
+-                          nsChangeHint(nsChangeHint_RecomputePosition |
+-                                       nsChangeHint_UpdateParentOverflow));
+-  }
+-  static nsChangeHint MaxDifferenceNeverInherited() {
+-    // CalcDifference can return both nsChangeHint_ClearAncestorIntrinsics and
+-    // nsChangeHint_NeedReflow as inherited hints.
+-    return nsChangeHint(0);
+-  }
+-
+-  // XXXdholbert nsStyleBackground::Position should probably be moved to a
+-  // different scope, since we're now using it in multiple style structs.
+-  typedef nsStyleBackground::Position Position;
+-
+-  Position      mObjectPosition;        // [reset]
+-  nsStyleSides  mOffset;                // [reset] coord, percent, calc, auto
+-  nsStyleCoord  mWidth;                 // [reset] coord, percent, enum, calc, auto
+-  nsStyleCoord  mMinWidth;              // [reset] coord, percent, enum, calc
+-  nsStyleCoord  mMaxWidth;              // [reset] coord, percent, enum, calc, none
+-  nsStyleCoord  mHeight;                // [reset] coord, percent, calc, auto
+-  nsStyleCoord  mMinHeight;             // [reset] coord, percent, calc
+-  nsStyleCoord  mMaxHeight;             // [reset] coord, percent, calc, none
+-  nsStyleCoord  mFlexBasis;             // [reset] coord, percent, enum, calc, auto
+-  nsStyleCoord  mGridAutoColumnsMin;    // [reset] coord, percent, enum, calc, flex
+-  nsStyleCoord  mGridAutoColumnsMax;    // [reset] coord, percent, enum, calc, flex
+-  nsStyleCoord  mGridAutoRowsMin;       // [reset] coord, percent, enum, calc, flex
+-  nsStyleCoord  mGridAutoRowsMax;       // [reset] coord, percent, enum, calc, flex
+-  uint8_t       mGridAutoFlow;          // [reset] enumerated. See nsStyleConsts.h
+-  uint8_t       mBoxSizing;             // [reset] see nsStyleConsts.h
+-  uint8_t       mAlignContent;          // [reset] see nsStyleConsts.h
+-  uint8_t       mAlignItems;            // [reset] see nsStyleConsts.h
+-  uint8_t       mAlignSelf;             // [reset] see nsStyleConsts.h
+-  uint8_t       mFlexDirection;         // [reset] see nsStyleConsts.h
+-  uint8_t       mFlexWrap;              // [reset] see nsStyleConsts.h
+-  uint8_t       mJustifyContent;        // [reset] see nsStyleConsts.h
+-  uint8_t       mObjectFit;             // [reset] see nsStyleConsts.h
+-  int32_t       mOrder;                 // [reset] integer
+-  float         mFlexGrow;              // [reset] float
+-  float         mFlexShrink;            // [reset] float
+-  nsStyleCoord  mZIndex;                // [reset] integer, auto
+-  nsStyleGridTemplate mGridTemplateColumns;
+-  nsStyleGridTemplate mGridTemplateRows;
+-
+-  // nullptr for 'none'
+-  nsRefPtr<mozilla::css::GridTemplateAreasValue> mGridTemplateAreas;
+-
+-  nsStyleGridLine mGridColumnStart;
+-  nsStyleGridLine mGridColumnEnd;
+-  nsStyleGridLine mGridRowStart;
+-  nsStyleGridLine mGridRowEnd;
+-
+-  bool WidthDependsOnContainer() const
+-    {
+-      return mWidth.GetUnit() == eStyleUnit_Auto ||
+-        WidthCoordDependsOnContainer(mWidth);
+-    }
+-
+-  // NOTE: For a flex item, "min-width:auto" is supposed to behave like
+-  // "min-content", which does depend on the container, so you might think we'd
+-  // need a special case for "flex item && min-width:auto" here.  However,
+-  // we don't actually need that special-case code, because flex items are
+-  // explicitly supposed to *ignore* their min-width (i.e. behave like it's 0)
+-  // until the flex container explicitly considers it.  So -- since the flex
+-  // container doesn't rely on this method, we don't need to worry about
+-  // special behavior for flex items' "min-width:auto" values here.
+-  bool MinWidthDependsOnContainer() const
+-    { return WidthCoordDependsOnContainer(mMinWidth); }
+-  bool MaxWidthDependsOnContainer() const
+-    { return WidthCoordDependsOnContainer(mMaxWidth); }
+-
+-  // Note that these functions count 'auto' as depending on the
+-  // container since that's the case for absolutely positioned elements.
+-  // However, some callers do not care about this case and should check
+-  // for it, since it is the most common case.
+-  // FIXME: We should probably change the assumption to be the other way
+-  // around.
+-  bool HeightDependsOnContainer() const
+-    {
+-      return mHeight.GetUnit() == eStyleUnit_Auto || // CSS 2.1, 10.6.4, item (5)
+-        HeightCoordDependsOnContainer(mHeight);
+-    }
+-
+-  // NOTE: The comment above MinWidthDependsOnContainer about flex items
+-  // applies here, too.
+-  bool MinHeightDependsOnContainer() const
+-    { return HeightCoordDependsOnContainer(mMinHeight); }
+-  bool MaxHeightDependsOnContainer() const
+-    { return HeightCoordDependsOnContainer(mMaxHeight); }
+-
+-  bool OffsetHasPercent(mozilla::css::Side aSide) const
+-  {
+-    return mOffset.Get(aSide).HasPercent();
+-  }
+-
+-private:
+-  static bool WidthCoordDependsOnContainer(const nsStyleCoord &aCoord);
+-  static bool HeightCoordDependsOnContainer(const nsStyleCoord &aCoord)
+-    { return aCoord.HasPercent(); }
+-};
+-
+ struct nsStyleTextOverflowSide {
+   nsStyleTextOverflowSide() : mType(NS_STYLE_TEXT_OVERFLOW_CLIP) {}
+ 
+@@ -2249,6 +2133,133 @@ struct nsStyleTable {
+   int32_t       mSpan;          // [reset] the number of columns spanned by a colgroup or col
+ };
+ 
++struct nsStylePosition {
++  nsStylePosition(void);
++  nsStylePosition(const nsStylePosition& aOther);
++  ~nsStylePosition(void);
++
++  void* operator new(size_t sz, nsPresContext* aContext) CPP_THROW_NEW {
++    return aContext->PresShell()->
++      AllocateByObjectID(nsPresArena::nsStylePosition_id, sz);
++  }
++  void Destroy(nsPresContext* aContext) {
++    this->~nsStylePosition();
++    aContext->PresShell()->
++      FreeByObjectID(nsPresArena::nsStylePosition_id, this);
++  }
++
++  nsChangeHint CalcDifference(const nsStylePosition& aOther) const;
++  static nsChangeHint MaxDifference() {
++    return NS_CombineHint(NS_STYLE_HINT_REFLOW,
++                          nsChangeHint(nsChangeHint_RecomputePosition |
++                                       nsChangeHint_UpdateParentOverflow));
++  }
++  static nsChangeHint MaxDifferenceNeverInherited() {
++    // CalcDifference can return both nsChangeHint_ClearAncestorIntrinsics and
++    // nsChangeHint_NeedReflow as inherited hints.
++    return nsChangeHint(0);
++  }
++
++  // XXXdholbert nsStyleBackground::Position should probably be moved to a
++  // different scope, since we're now using it in multiple style structs.
++  typedef nsStyleBackground::Position Position;
++  /**
++   * Return the computed value for 'justify-items' given our 'display' value in
++   * aDisplay and the parent StyleContext aParent (or null for the root).
++   */
++  uint8_t ComputedJustifyItems(const nsStyleDisplay* aDisplay,
++                               nsStyleContext* aParent) const;
++  Position      mObjectPosition;        // [reset]
++  nsStyleSides  mOffset;                // [reset] coord, percent, calc, auto
++  nsStyleCoord  mWidth;                 // [reset] coord, percent, enum, calc, auto
++  nsStyleCoord  mMinWidth;              // [reset] coord, percent, enum, calc
++  nsStyleCoord  mMaxWidth;              // [reset] coord, percent, enum, calc, none
++  nsStyleCoord  mHeight;                // [reset] coord, percent, calc, auto
++  nsStyleCoord  mMinHeight;             // [reset] coord, percent, calc
++  nsStyleCoord  mMaxHeight;             // [reset] coord, percent, calc, none
++  nsStyleCoord  mFlexBasis;             // [reset] coord, percent, enum, calc, auto
++  nsStyleCoord  mGridAutoColumnsMin;    // [reset] coord, percent, enum, calc, flex
++  nsStyleCoord  mGridAutoColumnsMax;    // [reset] coord, percent, enum, calc, flex
++  nsStyleCoord  mGridAutoRowsMin;       // [reset] coord, percent, enum, calc, flex
++  nsStyleCoord  mGridAutoRowsMax;       // [reset] coord, percent, enum, calc, flex
++  uint8_t       mGridAutoFlow;          // [reset] enumerated. See nsStyleConsts.h
++  uint8_t       mBoxSizing;             // [reset] see nsStyleConsts.h
++  uint8_t       mAlignContent;          // [reset] see nsStyleConsts.h
++  uint8_t       mAlignItems;            // [reset] see nsStyleConsts.h
++  uint8_t       mAlignSelf;             // [reset] see nsStyleConsts.h
++private:
++  friend class nsRuleNode;
++  uint8_t       mJustifyItems;          // [reset] see nsStyleConsts.h
++public:
++  uint8_t       mFlexDirection;         // [reset] see nsStyleConsts.h
++  uint8_t       mFlexWrap;              // [reset] see nsStyleConsts.h
++  uint8_t       mJustifyContent;        // [reset] see nsStyleConsts.h
++  uint8_t       mObjectFit;             // [reset] see nsStyleConsts.h
++  int32_t       mOrder;                 // [reset] integer
++  float         mFlexGrow;              // [reset] float
++  float         mFlexShrink;            // [reset] float
++  nsStyleCoord  mZIndex;                // [reset] integer, auto
++  nsStyleGridTemplate mGridTemplateColumns;
++  nsStyleGridTemplate mGridTemplateRows;
++
++  // nullptr for 'none'
++  nsRefPtr<mozilla::css::GridTemplateAreasValue> mGridTemplateAreas;
++
++  nsStyleGridLine mGridColumnStart;
++  nsStyleGridLine mGridColumnEnd;
++  nsStyleGridLine mGridRowStart;
++  nsStyleGridLine mGridRowEnd;
++
++  bool WidthDependsOnContainer() const
++    {
++      return mWidth.GetUnit() == eStyleUnit_Auto ||
++        WidthCoordDependsOnContainer(mWidth);
++    }
++
++  // NOTE: For a flex item, "min-width:auto" is supposed to behave like
++  // "min-content", which does depend on the container, so you might think we'd
++  // need a special case for "flex item && min-width:auto" here.  However,
++  // we don't actually need that special-case code, because flex items are
++  // explicitly supposed to *ignore* their min-width (i.e. behave like it's 0)
++  // until the flex container explicitly considers it.  So -- since the flex
++  // container doesn't rely on this method, we don't need to worry about
++  // special behavior for flex items' "min-width:auto" values here.
++  bool MinWidthDependsOnContainer() const
++    { return WidthCoordDependsOnContainer(mMinWidth); }
++  bool MaxWidthDependsOnContainer() const
++    { return WidthCoordDependsOnContainer(mMaxWidth); }
++
++  // Note that these functions count 'auto' as depending on the
++  // container since that's the case for absolutely positioned elements.
++  // However, some callers do not care about this case and should check
++  // for it, since it is the most common case.
++  // FIXME: We should probably change the assumption to be the other way
++  // around.
++  bool HeightDependsOnContainer() const
++    {
++      return mHeight.GetUnit() == eStyleUnit_Auto || // CSS 2.1, 10.6.4, item (5)
++        HeightCoordDependsOnContainer(mHeight);
++    }
++
++  // NOTE: The comment above MinWidthDependsOnContainer about flex items
++  // applies here, too.
++  bool MinHeightDependsOnContainer() const
++    { return HeightCoordDependsOnContainer(mMinHeight); }
++  bool MaxHeightDependsOnContainer() const
++    { return HeightCoordDependsOnContainer(mMaxHeight); }
++
++  bool OffsetHasPercent(mozilla::css::Side aSide) const
++  {
++    return mOffset.Get(aSide).HasPercent();
++  }
++
++private:
++  static bool WidthCoordDependsOnContainer(const nsStyleCoord &aCoord);
++  static bool HeightCoordDependsOnContainer(const nsStyleCoord &aCoord)
++    { return aCoord.HasPercent(); }
++};
++
++
+ struct nsStyleTableBorder {
+   nsStyleTableBorder();
+   nsStyleTableBorder(const nsStyleTableBorder& aOther);
+-- 
+2.8.2.windows.1
+

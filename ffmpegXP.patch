@@ -1,11 +1,11 @@
-From e8ef884766f43f01c4e3d1f1dfcc6299a5e0a5af Mon Sep 17 00:00:00 2001
+From e2c29f23231c37e6b3c1f13091fe4e650c7b71a2 Mon Sep 17 00:00:00 2001
 From: fedor <fedor@mail.ru>
-Date: Thu, 28 Sep 2017 04:35:21 +0300
-Subject: [PATCH] Add ffmpeg winxp support
+Date: Mon, 22 Jan 2018 12:29:18 +0300
+Subject: [PATCH] ffmpeg winxp
 
 ---
  configure.in                                       |   2 +-
- dom/media/fmp4/MP4Decoder.cpp                      |  12 ++-
+ dom/media/fmp4/MP4Decoder.cpp                      |   8 +-
  dom/media/platforms/PlatformDecoderModule.cpp      |   6 +-
  dom/media/platforms/ffmpeg/FFmpegAudioDecoder.cpp  |   9 +-
  dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp   |  57 +++++++++++-
@@ -13,14 +13,14 @@ Subject: [PATCH] Add ffmpeg winxp support
  dom/media/platforms/ffmpeg/FFmpegLibs.h            |   3 +-
  dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp | 100 ++++++++++++++++++++-
  dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h   |  42 ++++++++-
- dom/media/platforms/moz.build                      |  12 ++-
- 10 files changed, 250 insertions(+), 29 deletions(-)
+ dom/media/platforms/moz.build                      |  11 ++-
+ 10 files changed, 246 insertions(+), 28 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index ba6b896..1302293 100644
+index 2ba02d3..5822413 100644
 --- a/configure.in
 +++ b/configure.in
-@@ -5262,7 +5262,7 @@ dnl ========================================================
+@@ -5191,7 +5191,7 @@ dnl ========================================================
  dnl FFmpeg H264/AAC Decoding Support
  dnl ========================================================
  case "$OS_TARGET" in
@@ -30,17 +30,17 @@ index ba6b896..1302293 100644
  *)
      MOZ_FFMPEG=1
 diff --git a/dom/media/fmp4/MP4Decoder.cpp b/dom/media/fmp4/MP4Decoder.cpp
-index 41628e4..d0edd9d 100644
+index 2dc545a..91fd22e 100644
 --- a/dom/media/fmp4/MP4Decoder.cpp
 +++ b/dom/media/fmp4/MP4Decoder.cpp
-@@ -53,15 +53,11 @@ IsWhitelistedH264Codec(const nsAString& aCodec)
+@@ -53,16 +53,12 @@ IsWhitelistedH264Codec(const nsAString& aCodec)
    }
  
  #ifdef XP_WIN
 -  if (!Preferences::GetBool("media.use-blank-decoder") &&
 -      !WMFDecoderModule::HasH264()) {
--     return false;
--   }
+-    return false;
+-  }
  
    // Disable 4k video on windows vista since it performs poorly.
 -  if (!IsWin7OrLater() &&
@@ -51,29 +51,19 @@ index 41628e4..d0edd9d 100644
 +  }*/
  #endif
  
-@@ -229,10 +229,10 @@ HavePlatformMPEGDecoders()
- {
-   return Preferences::GetBool("media.use-blank-decoder") ||
- #ifdef XP_WIN
-          // We have H.264/AAC platform decoders on Windows Vista and up.
-+         IsFFmpegAvailable() ||
-          IsVistaOrLater() ||
- #endif
-          IsAndroidAvailable() ||
--         IsFFmpegAvailable() ||
-          IsAppleAvailable() ||
-          IsGonkMP4DecoderAvailable() ||
+   // Just assume what we can play on all platforms the codecs/formats that
 diff --git a/dom/media/platforms/PlatformDecoderModule.cpp b/dom/media/platforms/PlatformDecoderModule.cpp
-index fbe22dd..0b4eec4 100644
+index c9543d2..07752cb 100644
 --- a/dom/media/platforms/PlatformDecoderModule.cpp
 +++ b/dom/media/platforms/PlatformDecoderModule.cpp
-@@ -25,4 +25,5 @@
+@@ -24,5 +24,6 @@
+ 
  #include "mozilla/Preferences.h"
 +#include "mozilla/WindowsVersion.h"
  #include "SharedThreadPool.h"
  #include "MediaTaskQueue.h"
  
-@@ -79,9 +80,6 @@ PlatformDecoderModule::Init()
+@@ -84,9 +85,6 @@ PlatformDecoderModule::Init()
  #ifdef MOZ_APPLEMEDIA
    AppleDecoderModule::Init();
  #endif
@@ -83,7 +73,7 @@ index fbe22dd..0b4eec4 100644
  }
  
  /* static */
-@@ -113,8 +111,10 @@ PlatformDecoderModule::CreatePDM()
+@@ -118,8 +116,10 @@ PlatformDecoderModule::CreatePDM()
      return CreateBlankDecoderModule();
    }
  #ifdef XP_WIN
@@ -612,10 +602,10 @@ index 05ee8a8..2ddebba 100644
      LinkStatus_INIT = 0,
      LinkStatus_FAILED,
 diff --git a/dom/media/platforms/moz.build b/dom/media/platforms/moz.build
-index 46b6f98..f3ab64c 100644
+index bd125a5..42c7249 100644
 --- a/dom/media/platforms/moz.build
 +++ b/dom/media/platforms/moz.build
-@@ -28,10 +29,15 @@ if CONFIG['MOZ_FFMPEG']:
+@@ -30,10 +30,15 @@ if CONFIG['MOZ_FFMPEG']:
          'ffmpeg/FFmpegLog.cpp',
          'ffmpeg/FFmpegRuntimeLinker.cpp',
      ]

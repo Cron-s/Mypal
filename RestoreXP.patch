@@ -1,24 +1,43 @@
-From f312c692ea29696e005eb05de0eaf41812bb5202 Mon Sep 17 00:00:00 2001
+From 847c8deccf0d7b914857818c32ecef134e76bbd8 Mon Sep 17 00:00:00 2001
 From: fedor <fedor@mail.ru>
-Date: Wed, 8 Nov 2017 17:29:35 +0300
-Subject: [PATCH] Restore winxp support main
+Date: Tue, 20 Feb 2018 10:57:25 +0300
+Subject: [PATCH] restore xp
 
 ---
- browser/app/Makefile.in                            |  6 --
- browser/app/nsBrowserApp.cpp                       | 59 +++++++++++++--
- browser/app/splash.rc                              |  2 -
- browser/base/content/aboutDialog.xul               |  7 +-
- .../branding/unofficial/pref/palemoon-branding.js  |  5 +-
- browser/installer/Makefile.in                      |  3 +
- browser/installer/windows/nsis/defines.nsi.in      |  4 +-
- configure.in                                       | 87 +++++++++++++++++++++-
- gfx/angle/Makefile.in                              |  4 +
- gfx/gl/GLLibraryEGL.cpp                            |  5 ++
- gfx/gl/moz.build                                   |  2 +
- gfx/thebes/gfxWindowsPlatform.cpp                  |  1 +
- toolkit/mozapps/installer/windows/nsis/common.nsh  |  3 +-
- xpcom/ds/TimeStamp_windows.cpp                     | 52 +++++++++++--
- 14 files changed, 206 insertions(+), 34 deletions(-)
+ browser/app/Makefile.in                           |   6 -
+ browser/app/nsBrowserApp.cpp                      |  59 +++-
+ browser/app/splash.rc                             |   2 -
+ browser/installer/Makefile.in                     |   3 +
+ browser/installer/windows/nsis/defines.nsi.in     |   4 +-
+ configure.in                                      |  87 +++++-
+ dom/media/MediaManager.cpp                        |   9 +-
+ dom/media/test/test_can_play_type_mpeg.html       |  16 +-
+ dom/media/wmf/WMFDecoder.cpp                      |   4 +-
+ dom/plugins/base/nsNPAPIPlugin.cpp                |   6 +-
+ gfx/angle/Makefile.in                             |   4 +
+ gfx/gl/GLLibraryEGL.cpp                           |   5 +
+ gfx/gl/moz.build                                  |   2 +
+ gfx/thebes/gfxGDIFontList.cpp                     |  12 +-
+ gfx/thebes/gfxWindowsPlatform.cpp                 |  11 +-
+ hal/windows/WindowsBattery.cpp                    |  18 ++
+ js/src/jit/ExecutableAllocatorWin.cpp             |   5 +-
+ mozglue/build/WindowsDllBlocklist.cpp             |   2 +-
+ toolkit/mozapps/installer/windows/nsis/common.nsh |   3 +-
+ toolkit/xre/nsAppRunner.cpp                       |   4 +-
+ widget/windows/KeyboardLayout.cpp                 |  22 +-
+ widget/windows/WinMouseScrollHandler.cpp          |   4 +-
+ widget/windows/WinUtils.cpp                       |   2 +-
+ widget/windows/nsDataObj.cpp                      |   3 +-
+ widget/windows/nsFilePicker.cpp                   |  45 ++-
+ widget/windows/nsLookAndFeel.cpp                  |  12 +-
+ widget/windows/nsNativeThemeWin.cpp               | 364 ++++++++++++++--------
+ widget/windows/nsTextStore.cpp                    | 140 ++++++---
+ widget/windows/nsUXThemeData.cpp                  |   9 +-
+ widget/windows/nsWindow.cpp                       |  36 ++-
+ xpcom/ds/TimeStamp_windows.cpp                    |  52 +++-
+ xpcom/glue/nsThreadUtils.cpp                      |   5 +-
+ xpcom/io/nsLocalFileWin.cpp                       |  17 +-
+ 33 files changed, 715 insertions(+), 258 deletions(-)
 
 diff --git a/browser/app/Makefile.in b/browser/app/Makefile.in
 index 580fcb1..b60615c 100644
@@ -134,44 +153,6 @@ index 539c342..a5d418e 100644
  IDI_APPICON ICON FIREFOX_ICO
  IDI_DOCUMENT ICON DOCUMENT_ICO
  IDI_APPLICATION ICON FIREFOX_ICO
-diff --git a/browser/base/content/aboutDialog.xul b/browser/base/content/aboutDialog.xul
-index 1ba8f06..7b417d4 100644
---- a/browser/base/content/aboutDialog.xul
-+++ b/browser/base/content/aboutDialog.xul
-@@ -88,14 +88,13 @@
-           </vbox>
- 
-         <description class="text-pmcreds">
--          Pale Moon is released by <label class="text-link" href="http://www.moonchildproductions.info">Moonchild Productions</label>.
-+          New Moon unofficial version of Pale Moon released for windows xp.
-         </description>
-         <description class="text-pmcreds">
--          Special thanks to all our supporters and donors for making this browser possible!
-+          Therefore you may not ask any support from official Pale moon places like forum and so.
-         </description>
-         <description class="text-blurb">
--          If you wish to contribute, please consider helping out by providing support to other users on the <label class="text-link" href="https://forum.palemoon.org/">Pale Moon forum</label>
--          or getting involved in our development by tackling some of the issues found in our GitHub issue tracker.
-+          There is a <label class="text-link" href="https://github.com/Feodor2/Mypal">page on gihub</label>
-         </description>    
-         </vbox>
-       </vbox>
-diff --git a/browser/branding/unofficial/pref/palemoon-branding.js b/browser/branding/unofficial/pref/palemoon-branding.js
-index bf46b74..f71a809 100644
---- a/browser/branding/unofficial/pref/palemoon-branding.js
-+++ b/browser/branding/unofficial/pref/palemoon-branding.js
-@@ -4,7 +4,10 @@
- #include ../../shared/pref/uaoverrides.inc
- 
- pref("startup.homepage_override_url","http://www.palemoon.org/unofficial.shtml");
--pref("app.releaseNotesURL", "http://www.palemoon.org/releasenotes.shtml");
-+pref("app.releaseNotesURL", "https://github.com/Feodor2/MyPal");
-+
-+// Enable Firefox compatmode by default.
-+pref("general.useragent.compatMode", 2);
- 
- // Updates disabled
- pref("app.update.enabled", false);
 diff --git a/browser/installer/Makefile.in b/browser/installer/Makefile.in
 index 7ba8ae9..03a811c 100644
 --- a/browser/installer/Makefile.in
@@ -204,7 +185,7 @@ index ad171a5..f2d95b6 100644
  
  # File details shared by both the installer and uninstaller
 diff --git a/configure.in b/configure.in
-index c49c425..6ab9673 100644
+index 79f208f..f9d3d03 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -424,7 +424,7 @@ dnl ========================================================
@@ -230,7 +211,7 @@ index c49c425..6ab9673 100644
          WIN32_CONSOLE_EXE_LDFLAGS=-SUBSYSTEM:CONSOLE,$WIN32_SUBSYSTEM_VERSION
          WIN32_GUI_EXE_LDFLAGS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
          DSO_LDOPTS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
-@@ -5725,6 +5728,9 @@ MOZ_D3D_CPU_SUFFIX=
+@@ -5657,6 +5660,9 @@ MOZ_D3D_CPU_SUFFIX=
  MOZ_HAS_WINSDK_WITH_D3D=
  MOZ_D3DCOMPILER_VISTA_DLL=
  MOZ_D3DCOMPILER_VISTA_DLL_PATH=
@@ -240,7 +221,7 @@ index c49c425..6ab9673 100644
  
  case "$target_os" in
  *mingw*)
-@@ -5749,6 +5755,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
+@@ -5681,6 +5687,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
    AC_DEFINE(MOZ_WEBGL_CONFORMANT)
  fi
  
@@ -249,7 +230,7 @@ index c49c425..6ab9673 100644
  dnl ========================================================
  dnl D3D compiler DLL
  dnl ========================================================
-@@ -5797,20 +5805,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
+@@ -5729,20 +5737,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
      MOZ_CHECK_HEADER(d3d10.h, MOZ_HAS_WINSDK_WITH_D3D=1)
    fi
  
@@ -335,7 +316,7 @@ index c49c425..6ab9673 100644
    fi
  fi
  
-@@ -7649,6 +7722,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
+@@ -7581,6 +7654,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
  MOZ_ENABLE_SKIA=1,
  MOZ_ENABLE_SKIA=)
  
@@ -347,7 +328,7 @@ index c49c425..6ab9673 100644
  MOZ_ARG_DISABLE_BOOL(skia-gpu,
  [  --disable-skia-gpu  Disable use of Skia-GPU],
  MOZ_DISABLE_SKIA_GPU=1,
-@@ -8165,6 +8243,9 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
+@@ -8097,5 +8175,8 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
  AC_SUBST(MOZ_HAS_WINSDK_WITH_D3D)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL_PATH)
@@ -356,7 +337,101 @@ index c49c425..6ab9673 100644
 +AC_SUBST(MOZ_D3DCOMPILER_XP_CAB)
  
  AC_SUBST(MOZ_ANDROID_HISTORY)
- AC_SUBST(MOZ_WEBSMS_BACKEND)
+diff --git a/dom/media/MediaManager.cpp b/dom/media/MediaManager.cpp
+index e6b87f3..217d7fe 100644
+--- a/dom/media/MediaManager.cpp
++++ b/dom/media/MediaManager.cpp
+@@ -1670,16 +1670,21 @@ MediaManager::GetUserMedia(
+     case dom::MediaSourceEnum::Window:
+       // Deny screensharing request if support is disabled, or
+       // the requesting document is not from a host on the whitelist, or
+-      // we're on Mac OSX 10.6
++      // we're on Mac OSX 10.6 and WinXP until proved that they work
+       if (!Preferences::GetBool(((src == dom::MediaSourceEnum::Browser)?
+                                 "media.getusermedia.browser.enabled" :
+                                 "media.getusermedia.screensharing.enabled"),
+                                 false) ||
+-#if defined(XP_MACOSX)
++#if defined(XP_MACOSX) || defined(XP_WIN)
+           (
+             !Preferences::GetBool("media.getusermedia.screensharing.allow_on_old_platforms",
+                                   false) &&
++#if defined(XP_MACOSX)
+             !nsCocoaFeatures::OnLionOrLater()
++#endif
++#if defined (XP_WIN)
++            !IsVistaOrLater()
++#endif
+             ) ||
+ #endif
+           (!privileged && !HostHasPermission(*docURI))) {
+diff --git a/dom/media/test/test_can_play_type_mpeg.html b/dom/media/test/test_can_play_type_mpeg.html
+index 355a8f1..43d7293 100644
+--- a/dom/media/test/test_can_play_type_mpeg.html
++++ b/dom/media/test/test_can_play_type_mpeg.html
+@@ -91,6 +91,12 @@ function check_mp3(v, enabled) {
+   check("audio/mp3; codecs=mp3", "probably");
+ }
+ 
++function IsWindowsVistaOrLater() {
++  var re = /Windows NT (\d+\.\d)/;
++  var winver = navigator.userAgent.match(re);
++  return winver && winver.length == 2 && parseFloat(winver[1]) >= 6.0;
++}
++
+ function IsMacOSSnowLeopardOrLater() {
+   var re = /Mac OS X (\d+)\.(\d+)/;
+   var ver = navigator.userAgent.match(re);
+@@ -110,11 +116,11 @@ function getPref(name) {
+   return pref;
+ }
+ 
+-var haveMp4 = getPref("media.windows-media-foundation.enabled") ||
+-              IsMacOSSnowLeopardOrLater() ||
+-              IsJellyBeanOrLater() ||
+-              getPref("media.omx.enabled") ||
+-              getPref("media.ffmpeg.enabled");
++var haveMp4 = (getPref("media.windows-media-foundation.enabled") && IsWindowsVistaOrLater()) ||
++               IsMacOSSnowLeopardOrLater() ||
++               IsJellyBeanOrLater() ||
++               getPref("media.omx.enabled") ||
++               getPref("media.ffmpeg.enabled");
+              
+ check_mp4(document.getElementById('v'), haveMp4);
+ 
+diff --git a/dom/media/wmf/WMFDecoder.cpp b/dom/media/wmf/WMFDecoder.cpp
+index d1ac8b1..57ceca5 100644
+--- a/dom/media/wmf/WMFDecoder.cpp
++++ b/dom/media/wmf/WMFDecoder.cpp
+@@ -133,7 +133,9 @@ WMFDecoder::UnloadDLLs()
+ bool
+ WMFDecoder::IsEnabled()
+ {
+-  return Preferences::GetBool("media.windows-media-foundation.enabled");
++  // We only use WMF on Windows Vista and up
++  return IsVistaOrLater() &&
++         Preferences::GetBool("media.windows-media-foundation.enabled");
+ }
+ 
+ } // namespace mozilla
+diff --git a/dom/plugins/base/nsNPAPIPlugin.cpp b/dom/plugins/base/nsNPAPIPlugin.cpp
+index b5754bd..b04e463 100644
+--- a/dom/plugins/base/nsNPAPIPlugin.cpp
++++ b/dom/plugins/base/nsNPAPIPlugin.cpp
+@@ -378,10 +378,10 @@ nsNPAPIPlugin::RunPluginOOP(const nsPluginTag *aPluginTag)
+ #endif
+ 
+ #ifdef XP_WIN
+-    // We force Flash to run in OOPP mode when no specific override exists,
+-    // because Adobe doesn't test Flash in-process and there
++    // On Windows Vista+, we force Flash to run in OOPP mode when no specific
++    // override exists, because Adobe doesn't test Flash in-process and there
+     // are known stability bugs. (See also bug 769721)
+-    if (aPluginTag->mIsFlashPlugin) {
++    if (aPluginTag->mIsFlashPlugin && IsVistaOrLater()) {
+ #ifdef ACCESSIBILITY
+       if (!useA11yPref)
+         return true;
 diff --git a/gfx/angle/Makefile.in b/gfx/angle/Makefile.in
 index 0394b35..da63a55 100644
 --- a/gfx/angle/Makefile.in
@@ -401,11 +476,65 @@ index 72e6dc1..be9c3e5 100644
  
  CXXFLAGS += CONFIG['MOZ_CAIRO_CFLAGS']
  CXXFLAGS += CONFIG['TK_CFLAGS']
+diff --git a/gfx/thebes/gfxGDIFontList.cpp b/gfx/thebes/gfxGDIFontList.cpp
+index 37900b2..9680117 100644
+--- a/gfx/thebes/gfxGDIFontList.cpp
++++ b/gfx/thebes/gfxGDIFontList.cpp
+@@ -222,8 +222,16 @@ GDIFontEntry::IsSymbolFont()
+ gfxFont *
+ GDIFontEntry::CreateFontInstance(const gfxFontStyle* aFontStyle, bool aNeedsBold)
+ {
+-    return new gfxGDIFont(this, aFontStyle, aNeedsBold,
+-                          gfxFont::kAntialiasDefault);
++    bool isXP = !IsVistaOrLater();
++
++    bool useClearType = isXP && !aFontStyle->systemFont &&
++        (gfxWindowsPlatform::GetPlatform()->UseClearTypeAlways() ||
++         (mIsDataUserFont &&
++          gfxWindowsPlatform::GetPlatform()->UseClearTypeForDownloadableFonts()));
++
++    return new gfxGDIFont(this, aFontStyle, aNeedsBold, 
++                          (useClearType ? gfxFont::kAntialiasSubpixel
++                                        : gfxFont::kAntialiasDefault));
+ }
+ 
+ nsresult
 diff --git a/gfx/thebes/gfxWindowsPlatform.cpp b/gfx/thebes/gfxWindowsPlatform.cpp
-index 6cdcde8..4ca89d1 100644
+index c5a52fa..4ca89d1 100644
 --- a/gfx/thebes/gfxWindowsPlatform.cpp
 +++ b/gfx/thebes/gfxWindowsPlatform.cpp
-@@ -1841,6 +1841,7 @@ gfxWindowsPlatform::InitD3D11Devices()
+@@ -485,6 +485,8 @@ gfxWindowsPlatform::UpdateRenderMode()
+ 
+     mRenderMode = RENDER_GDI;
+ 
++    bool isVistaOrHigher = IsVistaOrLater();
++
+     bool safeMode = false;
+     nsCOMPtr<nsIXULRuntime> xr = do_GetService("@mozilla.org/xre/runtime;1");
+     if (xr)
+@@ -526,7 +528,8 @@ gfxWindowsPlatform::UpdateRenderMode()
+     }
+ 
+     ID3D11Device *device = GetD3D11Device();
+-    if (!safeMode && tryD2D && device &&
++    if (isVistaOrHigher && !safeMode && tryD2D &&
++        device &&
+         device->GetFeatureLevel() >= D3D_FEATURE_LEVEL_10_0 &&
+         DoesD3D11TextureSharingWork(device)) {
+ 
+@@ -541,8 +544,9 @@ gfxWindowsPlatform::UpdateRenderMode()
+ #endif
+ 
+ #ifdef CAIRO_HAS_DWRITE_FONT
+-    // Enable when it's preffed on or when we're going to use D2D.
+-    if (!mDWriteFactory && mUseDirectWrite) {
++    // Enable when it's preffed on -and- we're using Vista or higher. Or when
++    // we're going to use D2D.
++    if (!mDWriteFactory && (mUseDirectWrite && isVistaOrHigher)) {
+         decltype(DWriteCreateFactory)* createDWriteFactory = (decltype(DWriteCreateFactory)*)
+             GetProcAddress(LoadLibraryW(L"dwrite.dll"), "DWriteCreateFactory");
+ 
+@@ -1837,6 +1841,7 @@ gfxWindowsPlatform::InitD3D11Devices()
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_11_0);
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_10_1);
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_10_0);
@@ -413,6 +542,71 @@ index 6cdcde8..4ca89d1 100644
  
    RefPtr<IDXGIAdapter1> adapter;
  
+diff --git a/hal/windows/WindowsBattery.cpp b/hal/windows/WindowsBattery.cpp
+index 9dcafbf..72f2e0e 100644
+--- a/hal/windows/WindowsBattery.cpp
++++ b/hal/windows/WindowsBattery.cpp
+@@ -11,6 +11,7 @@
+ #include "nsComponentManagerUtils.h"
+ 
+ #include <windows.h>
++#include "mozilla/WindowsVersion.h"
+ 
+ using namespace mozilla::dom::battery;
+ 
+@@ -26,6 +27,23 @@ static HPOWERNOTIFY sPowerHandle = nullptr;
+ static HPOWERNOTIFY sCapacityHandle = nullptr;
+ static HWND sHWnd = nullptr;
+ 
++static void
++UpdateHandler(nsITimer* aTimer, void* aClosure) {
++  NS_ASSERTION(!IsVistaOrLater(),
++               "We shouldn't call this function for Vista or later version!");
++
++  static hal::BatteryInformation sLastInfo;
++  hal::BatteryInformation currentInfo;
++
++  hal_impl::GetCurrentBatteryInformation(&currentInfo);
++  if (sLastInfo.level() != currentInfo.level() ||
++      sLastInfo.charging() != currentInfo.charging() ||
++      sLastInfo.remainingTime() != currentInfo.remainingTime()) {
++    hal::NotifyBatteryChange(currentInfo);
++    sLastInfo = currentInfo;
++  }
++}
++
+ static
+ LRESULT CALLBACK
+ BatteryWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+diff --git a/js/src/jit/ExecutableAllocatorWin.cpp b/js/src/jit/ExecutableAllocatorWin.cpp
+index c3e1357..a36b754 100644
+--- a/js/src/jit/ExecutableAllocatorWin.cpp
++++ b/js/src/jit/ExecutableAllocatorWin.cpp
+@@ -72,9 +72,8 @@ void* ExecutableAllocator::computeRandomAllocationAddress()
+ static bool
+ RandomizeIsBrokenImpl()
+ {
+-    // Add specific checks here for broken randomizer implementations in 
+-    // operating systems (check if on broken O.S. versions).
+-    return false;
++    // We disable everything before Vista, for now.
++    return !mozilla::IsVistaOrLater();
+ }
+ 
+ static bool
+diff --git a/mozglue/build/WindowsDllBlocklist.cpp b/mozglue/build/WindowsDllBlocklist.cpp
+index 0dd4b83..3580671 100644
+--- a/mozglue/build/WindowsDllBlocklist.cpp
++++ b/mozglue/build/WindowsDllBlocklist.cpp
+@@ -682,7 +682,7 @@ continue_loading:
+       return STATUS_DLL_NOT_FOUND;
+     }
+ 
+-    if (!CheckASLR(full_fname)) {
++    if (IsVistaOrLater() && !CheckASLR(full_fname)) {
+       printf_stderr("LdrLoadDll: Blocking load of '%s'.  XPCOM components must support ASLR.\n", dllName);
+       return STATUS_DLL_NOT_FOUND;
+     }
 diff --git a/toolkit/mozapps/installer/windows/nsis/common.nsh b/toolkit/mozapps/installer/windows/nsis/common.nsh
 index 9778ce0..1e2735a 100644
 --- a/toolkit/mozapps/installer/windows/nsis/common.nsh
@@ -434,6 +628,1126 @@ index 9778ce0..1e2735a 100644
              MessageBox MB_OK|MB_ICONSTOP "$R9" IDOK
              ; Nothing initialized so no need to call OnEndCommon
              Quit
+diff --git a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
+index 24b4f62..9094e17 100644
+--- a/toolkit/xre/nsAppRunner.cpp
++++ b/toolkit/xre/nsAppRunner.cpp
+@@ -2788,7 +2788,9 @@ XREMain::XRE_mainInit(bool* aExitFlag)
+     // dwrite library and create a factory as early as possible so that the
+     // FntCache service is ready by the time it's needed.
+ 
+-    CreateThread(nullptr, 0, &InitDwriteBG, nullptr, 0, nullptr);
++    if (IsVistaOrLater()) {
++      CreateThread(nullptr, 0, &InitDwriteBG, nullptr, 0, nullptr);
++    }
+   }
+ #endif
+ 
+diff --git a/widget/windows/KeyboardLayout.cpp b/widget/windows/KeyboardLayout.cpp
+index 864b2a4..58667f7 100644
+--- a/widget/windows/KeyboardLayout.cpp
++++ b/widget/windows/KeyboardLayout.cpp
+@@ -1016,7 +1016,9 @@ NativeKey::GetScanCodeWithExtendedFlag() const
+   // MapVirtualKeyEx() has been improved for supporting extended keys since
+   // Vista.  When we call it for mapping a scancode of an extended key and
+   // a virtual keycode, we need to add 0xE000 to the scancode.
+-  if (!mIsExtended) {
++  // On Win XP and Win Server 2003, this doesn't support. On them, we have
++  // no way to get virtual keycodes from scancode of extended keys.
++  if (!mIsExtended || !IsVistaOrLater()) {
+     return mScanCode;
+   }
+   return (0xE000 | mScanCode);
+@@ -1092,7 +1094,12 @@ bool
+ NativeKey::CanComputeVirtualKeyCodeFromScanCode() const
+ {
+   // Vista or later supports ScanCodeEx.
+-  return true;
++  if (IsVistaOrLater()) {
++    return true;
++  }
++  // Otherwise, MapVirtualKeyEx() can compute virtual keycode only with
++  // non-extended key.
++  return !mIsExtended;
+ }
+ 
+ uint8_t
+@@ -1118,7 +1125,8 @@ NativeKey::ComputeScanCodeExFromVirtualKeyCode(UINT aVirtualKeyCode) const
+ {
+   return static_cast<uint16_t>(
+            ::MapVirtualKeyEx(aVirtualKeyCode,
+-                             MAPVK_VK_TO_VSC_EX,
++                             IsVistaOrLater() ? MAPVK_VK_TO_VSC_EX :
++                                                MAPVK_VK_TO_VSC,
+                              mKeyboardLayout));
+ }
+ 
+@@ -2376,7 +2384,8 @@ KeyboardLayout::LoadLayout(HKL aLayout)
+ #ifdef PR_LOGGING
+   if (PR_LOG_TEST(sKeyboardLayoutLogger, PR_LOG_DEBUG)) {
+     static const UINT kExtendedScanCode[] = { 0x0000, 0xE000 };
+-    static const UINT kMapType = MAPVK_VSC_TO_VK_EX;
++    static const UINT kMapType =
++      IsVistaOrLater() ? MAPVK_VSC_TO_VK_EX : MAPVK_VSC_TO_VK;
+     PR_LOG(sKeyboardLayoutLogger, PR_LOG_DEBUG,
+            ("Logging virtual keycode values for scancode (0x%p)...",
+             mKeyboardLayout));
+@@ -2388,6 +2397,11 @@ KeyboardLayout::LoadLayout(HKL aLayout)
+         PR_LOG(sKeyboardLayoutLogger, PR_LOG_DEBUG,
+                ("0x%04X, %s", scanCode, kVirtualKeyName[virtualKeyCode]));
+       }
++      // XP and Server 2003 don't support 0xE0 prefix of the scancode.
++      // Therefore, we don't need to continue on them.
++      if (!IsVistaOrLater()) {
++        break;
++      }
+     }
+   }
+ #endif // #ifdef PR_LOGGING
+diff --git a/widget/windows/WinMouseScrollHandler.cpp b/widget/windows/WinMouseScrollHandler.cpp
+index 8f37578..822a364 100644
+--- a/widget/windows/WinMouseScrollHandler.cpp
++++ b/widget/windows/WinMouseScrollHandler.cpp
+@@ -945,7 +945,9 @@ MouseScrollHandler::SystemSettings::Init()
+     PR_LOG(gMouseScrollLog, PR_LOG_ALWAYS,
+       ("MouseScroll::SystemSettings::Init(): ::SystemParametersInfo("
+          "SPI_GETWHEELSCROLLCHARS) failed, %s",
+-         "this is unexpected."));
++       IsVistaOrLater() ?
++         "this is unexpected on Vista or later" :
++         "but on XP or earlier, this is not a problem"));
+     mScrollChars = 1;
+   }
+ 
+diff --git a/widget/windows/WinUtils.cpp b/widget/windows/WinUtils.cpp
+index e13d204..25dd909 100644
+--- a/widget/windows/WinUtils.cpp
++++ b/widget/windows/WinUtils.cpp
+@@ -437,7 +437,7 @@ WinUtils::Initialize()
+     gWindowsLog = PR_NewLogModule("Widget");
+   }
+ #endif
+-  if (!sDwmDll) {
++  if (!sDwmDll && IsVistaOrLater()) {
+     sDwmDll = ::LoadLibraryW(kDwmLibraryName);
+ 
+     if (sDwmDll) {
+diff --git a/widget/windows/nsDataObj.cpp b/widget/windows/nsDataObj.cpp
+index 38068f0..44c4865 100644
+--- a/widget/windows/nsDataObj.cpp
++++ b/widget/windows/nsDataObj.cpp
+@@ -1138,7 +1138,8 @@ nsDataObj :: GetFileContentsInternetShortcut ( FORMATETC& aFE, STGMEDIUM& aSTG )
+   const char *shortcutFormatStr;
+   int totalLen;
+   nsCString path;
+-  if (!Preferences::GetBool(kShellIconPref, true)) {
++  if (!Preferences::GetBool(kShellIconPref, true) ||
++      !IsVistaOrLater()) {
+     shortcutFormatStr = "[InternetShortcut]\r\nURL=%s\r\n";
+     const int formatLen = strlen(shortcutFormatStr) - 2;  // don't include %s
+     totalLen = formatLen + asciiUrl.Length();  // don't include null character
+diff --git a/widget/windows/nsFilePicker.cpp b/widget/windows/nsFilePicker.cpp
+index 57626bd..22e9033 100644
+--- a/widget/windows/nsFilePicker.cpp
++++ b/widget/windows/nsFilePicker.cpp
+@@ -25,6 +25,7 @@
+ #include "WinUtils.h"
+ #include "nsPIDOMWindow.h"
+ 
++using mozilla::IsVistaOrLater;
+ using namespace mozilla::widget;
+ 
+ char16_t *nsFilePicker::mLastUsedUnicodeDirectory;
+@@ -688,6 +689,15 @@ nsFilePicker::ShowXPFilePicker(const nsString& aInitialDir)
+               OFN_HIDEREADONLY | OFN_PATHMUSTEXIST | OFN_ENABLESIZING | 
+               OFN_EXPLORER;
+ 
++  // Windows Vista and up won't allow you to use the new looking dialogs with
++  // a hook procedure.  The hook procedure fixes a problem on XP dialogs for
++  // file picker visibility.  Vista and up automatically ensures the file 
++  // picker is always visible.
++  if (!IsVistaOrLater()) {
++    ofn.lpfnHook = FilePickerHook;
++    ofn.Flags |= OFN_ENABLEHOOK;
++  }
++
+   // Handle add to recent docs settings
+   if (IsPrivacyModeEnabled() || !mAddToRecentDocs) {
+     ofn.Flags |= OFN_DONTADDTORECENT;
+@@ -732,9 +742,24 @@ nsFilePicker::ShowXPFilePicker(const nsString& aInitialDir)
+     case modeOpenMultiple:
+       ofn.Flags |= OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT;
+ 
+-      // XXX: We need to eventually move to
+-      // the new Common File Dialogs for Windows.
+-      result = FilePickerWrapper(&ofn, PICKER_TYPE_OPEN);
++      // The hook set here ensures that the buffer returned will always be
++      // large enough to hold all selected files.  The hook may modify the
++      // value of ofn.lpstrFile and deallocate the old buffer that it pointed
++      // to (fileBuffer). The hook assumes that the passed in value is heap 
++      // allocated and that the returned value should be freed by the caller.
++      // If the hook changes the buffer, it will deallocate the old buffer.
++      // This fix would be nice to have in Vista and up, but it would force
++      // the file picker to use the old style dialogs because hooks are not
++      // allowed in the new file picker UI.  We need to eventually move to
++      // the new Common File Dialogs for Vista and up.
++      if (!IsVistaOrLater()) {
++        ofn.lpfnHook = MultiFilePickerHook;
++        fileBuffer.forget();
++        result = FilePickerWrapper(&ofn, PICKER_TYPE_OPEN);
++        fileBuffer = ofn.lpstrFile;
++      } else {
++        result = FilePickerWrapper(&ofn, PICKER_TYPE_OPEN);
++      }
+       break;
+ 
+     case modeSave:
+@@ -1019,18 +1044,20 @@ nsFilePicker::ShowW(int16_t *aReturnVal)
+   mUnicodeFile.Truncate();
+   mFiles.Clear();
+ 
+-  // Launch the XP-style file/folder picker as a fallback. 
++  // Launch the XP file/folder picker on XP and as a fallback on Vista+. 
+   // The CoCreateInstance call to CLSID_FileOpenDialog fails with "(0x80040111)
+   // ClassFactory cannot supply requested class" when the checkbox for
+   // Disable Visual Themes is on in the compatability tab within the shortcut
+   // properties.
+   bool result = false, wasInitError = true;
+   if (mMode == modeGetFolder) {
+-    result = ShowFolderPicker(initialDir, wasInitError);
++    if (IsVistaOrLater())
++      result = ShowFolderPicker(initialDir, wasInitError);
+     if (!result && wasInitError)
+       result = ShowXPFolderPicker(initialDir);
+   } else {
+-    result = ShowFilePicker(initialDir, wasInitError);
++    if (IsVistaOrLater())
++      result = ShowFilePicker(initialDir, wasInitError);
+     if (!result && wasInitError)
+       result = ShowXPFilePicker(initialDir);
+   }
+@@ -1221,7 +1248,11 @@ nsFilePicker::AppendXPFilter(const nsAString& aTitle, const nsAString& aFilter)
+ NS_IMETHODIMP
+ nsFilePicker::AppendFilter(const nsAString& aTitle, const nsAString& aFilter)
+ {
+-  mComFilterList.Append(aTitle, aFilter);
++  if (IsVistaOrLater()) {
++    mComFilterList.Append(aTitle, aFilter);
++  } else {
++    AppendXPFilter(aTitle, aFilter);
++  }
+   return NS_OK;
+ }
+ 
+diff --git a/widget/windows/nsLookAndFeel.cpp b/widget/windows/nsLookAndFeel.cpp
+index 56979fd..0239cc0 100644
+--- a/widget/windows/nsLookAndFeel.cpp
++++ b/widget/windows/nsLookAndFeel.cpp
+@@ -34,8 +34,10 @@ nsLookAndFeel::GetOperatingSystemVersion()
+     version = eOperatingSystemVersion_Windows8;
+   } else if (IsWin7OrLater()) {
+     version = eOperatingSystemVersion_Windows7;
+-  } else {
++  } else if (IsVistaOrLater()) {
+     version = eOperatingSystemVersion_WindowsVista;
++  } else {
++    version = eOperatingSystemVersion_WindowsXP;
+   }
+ 
+   return version;
+@@ -191,7 +193,7 @@ nsLookAndFeel::NativeGetColor(ColorID aID, nscolor &aColor)
+       idx = COLOR_HIGHLIGHT;
+       break;
+     case eColorID__moz_menubarhovertext:
+-      if (!IsAppThemed())
++      if (!IsVistaOrLater() || !IsAppThemed())
+       {
+         idx = nsUXThemeData::sFlatMenus ?
+                 COLOR_HIGHLIGHTTEXT :
+@@ -200,7 +202,7 @@ nsLookAndFeel::NativeGetColor(ColorID aID, nscolor &aColor)
+       }
+       // Fall through
+     case eColorID__moz_menuhovertext:
+-      if (IsAppThemed())
++      if (IsVistaOrLater() && IsAppThemed())
+       {
+         res = ::GetColorFromTheme(eUXMenu,
+                                   MENU_POPUPITEM, MPI_HOT, TMT_TEXTCOLOR, aColor);
+@@ -293,7 +295,7 @@ nsLookAndFeel::NativeGetColor(ColorID aID, nscolor &aColor)
+       aColor = NS_RGB(0, 0, 0);
+       return NS_OK;
+     case eColorID__moz_win_mediatext:
+-      if (IsAppThemed()) {
++      if (IsVistaOrLater() && IsAppThemed()) {
+         res = ::GetColorFromTheme(eUXMediaToolbar,
+                                   TP_BUTTON, TS_NORMAL, TMT_TEXTCOLOR, aColor);
+         if (NS_SUCCEEDED(res))
+@@ -303,7 +305,7 @@ nsLookAndFeel::NativeGetColor(ColorID aID, nscolor &aColor)
+       idx = COLOR_WINDOWTEXT;
+       break;
+     case eColorID__moz_win_communicationstext:
+-      if (IsAppThemed())
++      if (IsVistaOrLater() && IsAppThemed())
+       {
+         res = ::GetColorFromTheme(eUXCommunicationsToolbar,
+                                   TP_BUTTON, TS_NORMAL, TMT_TEXTCOLOR, aColor);
+diff --git a/widget/windows/nsNativeThemeWin.cpp b/widget/windows/nsNativeThemeWin.cpp
+index 25a56fb..4168572 100644
+--- a/widget/windows/nsNativeThemeWin.cpp
++++ b/widget/windows/nsNativeThemeWin.cpp
+@@ -38,6 +38,7 @@
+ #include "nsUXThemeConstants.h"
+ #include <algorithm>
+ 
++using mozilla::IsVistaOrLater;
+ using namespace mozilla;
+ using namespace mozilla::widget;
+ 
+@@ -352,6 +353,8 @@ AddPaddingRect(nsIntSize* aSize, CaptionButton button) {
+   RECT offset;
+   if (!IsAppThemed())
+     offset = buttonData[CAPTION_CLASSIC].hotPadding[button];
++  else if (!IsVistaOrLater())
++    offset = buttonData[CAPTION_XPTHEME].hotPadding[button];
+   else
+     offset = buttonData[CAPTION_BASIC].hotPadding[button];
+   aSize->width += offset.left + offset.right;
+@@ -365,6 +368,8 @@ OffsetBackgroundRect(RECT& rect, CaptionButton button) {
+   RECT offset;
+   if (!IsAppThemed())
+     offset = buttonData[CAPTION_CLASSIC].hotPadding[button];
++  else if (!IsVistaOrLater())
++    offset = buttonData[CAPTION_XPTHEME].hotPadding[button];
+   else
+     offset = buttonData[CAPTION_BASIC].hotPadding[button];
+   rect.left += offset.left;
+@@ -427,9 +432,15 @@ static int32_t
+ GetProgressOverlayStyle(bool aIsVertical)
+ { 
+   if (aIsVertical) {
+-    return PP_MOVEOVERLAYVERT;
++    if (IsVistaOrLater()) {
++      return PP_MOVEOVERLAYVERT;
++    }
++    return PP_CHUNKVERT;
+   } else {
+-    return PP_MOVEOVERLAY;
++    if (IsVistaOrLater()) {
++      return PP_MOVEOVERLAY;
++    }
++    return PP_CHUNK;
+   }
+ }
+ 
+@@ -441,11 +452,14 @@ GetProgressOverlayStyle(bool aIsVertical)
+ static int32_t
+ GetProgressOverlaySize(bool aIsVertical, bool aIsIndeterminate)
+ {
+-  if (aIsVertical) {
+-    return aIsIndeterminate ? kProgressVerticalIndeterminateOverlaySize
+-                            : kProgressVerticalOverlaySize;
++  if (IsVistaOrLater()) {
++    if (aIsVertical) {
++      return aIsIndeterminate ? kProgressVerticalIndeterminateOverlaySize
++                              : kProgressVerticalOverlaySize;
++    }
++    return kProgressHorizontalVistaOverlaySize;
+   }
+-  return kProgressHorizontalVistaOverlaySize;
++  return kProgressHorizontalXPOverlaySize;
+ }
+ 
+ /*
+@@ -646,6 +660,12 @@ nsNativeThemeWin::DrawThemedProgressMeter(nsIFrame* aFrame, int aWidgetType,
+   RECT adjWidgetRect, adjClipRect;
+   adjWidgetRect = *aWidgetRect;
+   adjClipRect = *aClipRect;
++  if (!IsVistaOrLater()) {
++    // Adjust clipping out by one pixel. XP progress meters are inset,
++    // Vista+ are not.
++    InflateRect(&adjWidgetRect, 1, 1);
++    InflateRect(&adjClipRect, 1, 1);
++  }
+ 
+   nsIFrame* parentFrame = aFrame->GetParent();
+   if (!parentFrame) {
+@@ -660,13 +680,20 @@ nsNativeThemeWin::DrawThemedProgressMeter(nsIFrame* aFrame, int aWidgetType,
+   bool indeterminate = IsIndeterminateProgress(parentFrame, eventStates);
+   bool animate = indeterminate;
+ 
+-  // Progress meter is fill style, rendered here. We render
+-  // the pulse overlay in the follow-up section below.
+-  DrawThemeBackground(aTheme, aHdc, aPart, aState,
+-                      &adjWidgetRect, &adjClipRect);
+-  if (!IsProgressMeterFilled(aFrame)) {
+-    animate = true;
+-  }
++  if (IsVistaOrLater()) {
++    // Vista and up progress meter is fill style, rendered here. We render
++    // the pulse overlay in the follow up section below.
++    DrawThemeBackground(aTheme, aHdc, aPart, aState,
++                        &adjWidgetRect, &adjClipRect);
++    if (!IsProgressMeterFilled(aFrame)) {
++      animate = true;
++    }
++  } else if (!indeterminate) {
++    // XP progress meters are 'chunk' style.
++    DrawChunkProgressMeter(aTheme, aHdc, aPart, aState, aFrame,
++                           &adjWidgetRect, &adjClipRect, aAppUnits,
++                           indeterminate, vertical, IsFrameRTL(aFrame));
++  }    
+ 
+   if (animate) {
+     // Indeterminate rendering
+@@ -674,8 +701,15 @@ nsNativeThemeWin::DrawThemedProgressMeter(nsIFrame* aFrame, int aWidgetType,
+     RECT overlayRect =
+       CalculateProgressOverlayRect(aFrame, &adjWidgetRect, vertical,
+                                    indeterminate, false);
+-    DrawThemeBackground(aTheme, aHdc, overlayPart, aState, &overlayRect,
+-                        &adjClipRect);
++    if (IsVistaOrLater()) {
++      DrawThemeBackground(aTheme, aHdc, overlayPart, aState, &overlayRect,
++                          &adjClipRect);
++    } else {
++      DrawChunkProgressMeter(aTheme, aHdc, overlayPart, aState, aFrame,
++                             &overlayRect, &adjClipRect, aAppUnits,
++                             indeterminate, vertical, IsFrameRTL(aFrame));
++    }
++
+     if (!QueueAnimatedContentForRefresh(aFrame->GetContent(), 60)) {
+       NS_WARNING("unable to animate progress widget!");
+     }
+@@ -685,6 +719,15 @@ nsNativeThemeWin::DrawThemedProgressMeter(nsIFrame* aFrame, int aWidgetType,
+ HANDLE
+ nsNativeThemeWin::GetTheme(uint8_t aWidgetType)
+ { 
++  if (!IsVistaOrLater()) {
++    // On XP or earlier, render dropdowns as textfields;
++    // doing it the right way works fine with the MS themes,
++    // but breaks on a lot of custom themes (presumably because MS
++    // apps do the textfield border business as well).
++    if (aWidgetType == NS_THEME_DROPDOWN)
++      aWidgetType = NS_THEME_TEXTFIELD;
++  }
++
+   switch (aWidgetType) {
+     case NS_THEME_BUTTON:
+     case NS_THEME_RADIO:
+@@ -697,7 +740,9 @@ nsNativeThemeWin::GetTheme(uint8_t aWidgetType)
+     case NS_THEME_FOCUS_OUTLINE:
+       return nsUXThemeData::GetTheme(eUXEdit);
+     case NS_THEME_TOOLTIP:
+-      return nsUXThemeData::GetTheme(eUXTooltip);
++      // XP/2K3 should force a classic treatment of tooltips
++      return !IsVistaOrLater() ?
++        nullptr : nsUXThemeData::GetTheme(eUXTooltip);
+     case NS_THEME_TOOLBOX:
+       return nsUXThemeData::GetTheme(eUXRebar);
+     case NS_THEME_WIN_MEDIA_TOOLBOX:
+@@ -824,6 +869,12 @@ nsresult
+ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType, 
+                                        int32_t& aPart, int32_t& aState)
+ {
++  if (!IsVistaOrLater()) {
++    // See GetTheme
++    if (aWidgetType == NS_THEME_DROPDOWN)
++      aWidgetType = NS_THEME_TEXTFIELD;
++  }
++
+   switch (aWidgetType) {
+     case NS_THEME_BUTTON: {
+       aPart = BP_BUTTON;
+@@ -896,45 +947,63 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
+     case NS_THEME_TEXTFIELD_MULTILINE: {
+       EventStates eventState = GetContentState(aFrame, aWidgetType);
+ 
+-      /* Note: the NOSCROLL type has a rounded corner in each
+-       * corner.  The more specific HSCROLL, VSCROLL, HVSCROLL types
+-       * have side and/or top/bottom edges rendered as straight
+-       * horizontal lines with sharp corners to accommodate a
+-       * scrollbar.  However, the scrollbar gets rendered on top of
+-       * this for us, so we don't care, and can just use NOSCROLL
+-       * here.
+-       */
+-      aPart = TFP_EDITBORDER_NOSCROLL;
++      if (IsVistaOrLater()) {
++        /* Note: the NOSCROLL type has a rounded corner in each
++         * corner.  The more specific HSCROLL, VSCROLL, HVSCROLL types
++         * have side and/or top/bottom edges rendered as straight
++         * horizontal lines with sharp corners to accommodate a
++         * scrollbar.  However, the scrollbar gets rendered on top of
++         * this for us, so we don't care, and can just use NOSCROLL
++         * here.
++         */
++        aPart = TFP_EDITBORDER_NOSCROLL;
+ 
+-      if (!aFrame) {
+-        aState = TFS_EDITBORDER_NORMAL;
+-      } else if (IsDisabled(aFrame, eventState)) {
+-        aState = TFS_EDITBORDER_DISABLED;
+-      } else if (IsReadOnly(aFrame)) {
+-        /* no special read-only state */
+-        aState = TFS_EDITBORDER_NORMAL;
+-      } else {
+-        nsIContent* content = aFrame->GetContent();
++        if (!aFrame) {
++          aState = TFS_EDITBORDER_NORMAL;
++        } else if (IsDisabled(aFrame, eventState)) {
++          aState = TFS_EDITBORDER_DISABLED;
++        } else if (IsReadOnly(aFrame)) {
++          /* no special read-only state */
++          aState = TFS_EDITBORDER_NORMAL;
++        } else {
++          nsIContent* content = aFrame->GetContent();
+ 
+-        /* XUL textboxes don't get focused themselves, because they have child
+-         * html:input.. but we can check the XUL focused attributes on them
+-         */
+-        if (content && content->IsXUL() && IsFocused(aFrame))
+-          aState = TFS_EDITBORDER_FOCUSED;
+-        else if (eventState.HasAtLeastOneOfStates(NS_EVENT_STATE_ACTIVE | NS_EVENT_STATE_FOCUS))
+-          aState = TFS_EDITBORDER_FOCUSED;
+-        else if (eventState.HasState(NS_EVENT_STATE_HOVER))
+-          aState = TFS_EDITBORDER_HOVER;
++          /* XUL textboxes don't get focused themselves, because they have child
++           * html:input.. but we can check the XUL focused attributes on them
++           */
++          if (content && content->IsXUL() && IsFocused(aFrame))
++            aState = TFS_EDITBORDER_FOCUSED;
++          else if (eventState.HasAtLeastOneOfStates(NS_EVENT_STATE_ACTIVE | NS_EVENT_STATE_FOCUS))
++            aState = TFS_EDITBORDER_FOCUSED;
++          else if (eventState.HasState(NS_EVENT_STATE_HOVER))
++            aState = TFS_EDITBORDER_HOVER;
++          else
++            aState = TFS_EDITBORDER_NORMAL;
++        }
++      } else {
++        aPart = TFP_TEXTFIELD;
++        
++        if (!aFrame)
++          aState = TS_NORMAL;
++        else if (IsDisabled(aFrame, eventState))
++          aState = TS_DISABLED;
++        else if (IsReadOnly(aFrame))
++          aState = TFS_READONLY;
+         else
+-          aState = TFS_EDITBORDER_NORMAL;
++          aState = StandardGetState(aFrame, aWidgetType, true);
+       }
+ 
+       return NS_OK;
+     }
+     case NS_THEME_FOCUS_OUTLINE: {
+-      // XXX the EDITBORDER values don't respect DTBG_OMITCONTENT
+-      aPart = TFP_TEXTFIELD; //TFP_EDITBORDER_NOSCROLL;
+-      aState = TS_FOCUSED; //TFS_EDITBORDER_FOCUSED;
++      if (IsVistaOrLater()) {
++        // XXX the EDITBORDER values don't respect DTBG_OMITCONTENT
++        aPart = TFP_TEXTFIELD; //TFP_EDITBORDER_NOSCROLL;
++        aState = TS_FOCUSED; //TFS_EDITBORDER_FOCUSED;
++      } else {
++        aPart = TFP_TEXTFIELD;
++        aState = TS_FOCUSED;
++      }
+       return NS_OK;
+     }
+     case NS_THEME_TOOLTIP: {
+@@ -959,9 +1028,11 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
+       EventStates eventStates = GetContentState(parentFrame, aWidgetType);
+       if (aWidgetType == NS_THEME_PROGRESSBAR_CHUNK_VERTICAL ||
+           IsVerticalProgress(parentFrame)) {
+-        aPart = PP_FILLVERT;
++        aPart = IsVistaOrLater() ?
++          PP_FILLVERT : PP_CHUNKVERT;
+       } else {
+-        aPart = PP_FILL;
++        aPart = IsVistaOrLater() ?
++          PP_FILL : PP_CHUNK;
+       }
+ 
+       aState = PBBVS_NORMAL;
+@@ -1025,7 +1096,8 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
+           aState += TS_ACTIVE;
+         else if (eventState.HasState(NS_EVENT_STATE_HOVER))
+           aState += TS_HOVER;
+-        else if (parentState.HasState(NS_EVENT_STATE_HOVER))
++        else if (IsVistaOrLater() &&
++                 parentState.HasState(NS_EVENT_STATE_HOVER))
+           aState = (aWidgetType - NS_THEME_SCROLLBAR_BUTTON_UP) + SP_BUTTON_IMPLICIT_HOVER_BASE;
+         else
+           aState += TS_NORMAL;
+@@ -1128,7 +1200,14 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
+     case NS_THEME_SCROLLBAR:
+     case NS_THEME_SCROLLBAR_SMALL: {
+       aState = 0;
+-      aPart = RP_BACKGROUND;
++      if (IsVistaOrLater()) {
++        // On vista, they have a part
++        aPart = RP_BACKGROUND;
++      } else {
++        // Otherwise, they don't.  (But I bet
++        // RP_BACKGROUND would work here, too);
++        aPart = 0;
++      }
+       return NS_OK;
+     }
+     case NS_THEME_TOOLBAR: {
+@@ -1253,7 +1332,8 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
+         aFrame = parentFrame;
+ 
+       EventStates eventState = GetContentState(aFrame, aWidgetType);
+-      aPart = CBP_DROPMARKER_VISTA;
++      aPart = IsVistaOrLater() ?
++        CBP_DROPMARKER_VISTA : CBP_DROPMARKER;
+ 
+       // For HTML controls with author styling, we should fall
+       // back to the old dropmarker style to avoid clashes with
+@@ -1273,26 +1353,28 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
+       else
+         isOpen = IsOpenButton(aFrame);
+ 
+-      if (isHTML || IsMenuListEditable(aFrame)) {
+-        if (isOpen) {
+-          /* Hover is propagated, but we need to know whether we're
+-           * hovering just the combobox frame, not the dropdown frame.
+-           * But, we can't get that information, since hover is on the
+-           * content node, and they share the same content node.  So,
+-           * instead, we cheat -- if the dropdown is open, we always
+-           * show the hover state.  This looks fine in practice.
++      if (IsVistaOrLater()) {
++        if (isHTML || IsMenuListEditable(aFrame)) {
++          if (isOpen) {
++            /* Hover is propagated, but we need to know whether we're
++             * hovering just the combobox frame, not the dropdown frame.
++             * But, we can't get that information, since hover is on the
++             * content node, and they share the same content node.  So,
++             * instead, we cheat -- if the dropdown is open, we always
++             * show the hover state.  This looks fine in practice.
++             */
++            aState = TS_HOVER;
++            return NS_OK;
++          }
++        } else {
++          /* On Vista, the dropdown indicator on a menulist button in  
++           * chrome is not given a hover effect. When the frame isn't
++           * isn't HTML content, we cheat and force the dropdown state
++           * to be normal. (Bug 430434)
+            */
+-          aState = TS_HOVER;
++          aState = TS_NORMAL;
+           return NS_OK;
+         }
+-      } else {
+-        /* The dropdown indicator on a menulist button in  
+-         * chrome is not given a hover effect. When the frame isn't
+-         * HTML content, we cheat and force the dropdown state
+-         * to be normal. (Bug 430434)
+-         */
+-        aState = TS_NORMAL;
+-        return NS_OK;
+       }
+ 
+       aState = TS_NORMAL;
+@@ -1822,9 +1904,10 @@ RENDER_AGAIN:
+         ::GetViewportOrgEx(hdc, &vpOrg);
+         ::SetBrushOrgEx(hdc, vpOrg.x + widgetRect.left, vpOrg.y + widgetRect.top, nullptr);
+ 
+-        // Choose our own colors and draw an XP style half focus rect
++        // On vista, choose our own colors and draw an XP style half focus rect
+         // for focused checkboxes and a full rect when active.
+-        if (aWidgetType == NS_THEME_CHECKBOX) {
++        if (IsVistaOrLater() &&
++            aWidgetType == NS_THEME_CHECKBOX) {
+           LOGBRUSH lb;
+           lb.lbStyle = BS_SOLID;
+           lb.lbColor = RGB(255,255,255);
+@@ -2037,37 +2120,39 @@ nsNativeThemeWin::GetWidgetPadding(nsDeviceContext* aContext,
+     return true;
+   }
+ 
+-  if (aWidgetType == NS_THEME_NUMBER_INPUT ||
+-      aWidgetType == NS_THEME_TEXTFIELD ||
+-      aWidgetType == NS_THEME_TEXTFIELD_MULTILINE ||
+-      aWidgetType == NS_THEME_DROPDOWN)
+-  {
+-    /* If we have author-specified padding for these elements, don't do the fixups below */
+-    if (aFrame->PresContext()->HasAuthorSpecifiedRules(aFrame, NS_AUTHOR_SPECIFIED_PADDING))
+-      return false;
+-  }
++  if (IsVistaOrLater()) {
++    if (aWidgetType == NS_THEME_NUMBER_INPUT ||
++        aWidgetType == NS_THEME_TEXTFIELD ||
++        aWidgetType == NS_THEME_TEXTFIELD_MULTILINE ||
++        aWidgetType == NS_THEME_DROPDOWN)
++    {
++      /* If we have author-specified padding for these elements, don't do the fixups below */
++      if (aFrame->PresContext()->HasAuthorSpecifiedRules(aFrame, NS_AUTHOR_SPECIFIED_PADDING))
++        return false;
++    }
+ 
+-  /* textfields need extra pixels on all sides, otherwise they
+-   * wrap their content too tightly.  The actual border is drawn 1px
+-   * inside the specified rectangle, so Goanna will end up making the
+-   * contents look too small.  Instead, we add 2px padding for the
+-   * contents and fix this. (Used to be 1px added, see bug 430212)
+-   */
+-  if (aWidgetType == NS_THEME_NUMBER_INPUT ||
+-      aWidgetType == NS_THEME_TEXTFIELD ||
+-      aWidgetType == NS_THEME_TEXTFIELD_MULTILINE) {
+-    aResult->top = aResult->bottom = 2;
+-    aResult->left = aResult->right = 2;
+-    return true;
+-  } else if (IsHTMLContent(aFrame) && aWidgetType == NS_THEME_DROPDOWN) {
+-    /* For content menulist controls, we need an extra pixel so
+-     * that we have room to draw our focus rectangle stuff.
+-     * Otherwise, the focus rect might overlap the control's
+-     * border.
++    /* textfields need extra pixels on all sides, otherwise they
++     * wrap their content too tightly.  The actual border is drawn 1px
++     * inside the specified rectangle, so Goanna will end up making the
++     * contents look too small.  Instead, we add 2px padding for the
++     * contents and fix this. (Used to be 1px added, see bug 430212)
+      */
+-    aResult->top = aResult->bottom = 1;
+-    aResult->left = aResult->right = 1;
+-    return true;
++    if (aWidgetType == NS_THEME_NUMBER_INPUT ||
++        aWidgetType == NS_THEME_TEXTFIELD ||
++        aWidgetType == NS_THEME_TEXTFIELD_MULTILINE) {
++      aResult->top = aResult->bottom = 2;
++      aResult->left = aResult->right = 2;
++      return true;
++    } else if (IsHTMLContent(aFrame) && aWidgetType == NS_THEME_DROPDOWN) {
++      /* For content menulist controls, we need an extra pixel so
++       * that we have room to draw our focus rectangle stuff.
++       * Otherwise, the focus rect might overlap the control's
++       * border.
++       */
++      aResult->top = aResult->bottom = 1;
++      aResult->left = aResult->right = 1;
++      return true;
++    }
+   }
+ 
+   int32_t right, left, top, bottom;
+@@ -2131,21 +2216,23 @@ nsNativeThemeWin::GetWidgetOverflow(nsDeviceContext* aContext,
+    * a border only shows up if the widget is being hovered.
+    */
+ #if 0
+-  /* We explicitly draw dropdown buttons in HTML content 1px bigger
+-   * up, right, and bottom so that they overlap the dropdown's border
+-   * like they're supposed to.
+-   */
+-  if (aWidgetType == NS_THEME_DROPDOWN_BUTTON &&
+-      IsHTMLContent(aFrame) &&
+-      !IsWidgetStyled(aFrame->GetParent()->PresContext(),
+-                      aFrame->GetParent(),
+-                      NS_THEME_DROPDOWN))
+-  {
+-    int32_t p2a = aContext->AppUnitsPerDevPixel();
+-    /* Note: no overflow on the left */
+-    nsMargin m(p2a, p2a, p2a, 0);
+-    aOverflowRect->Inflate (m);
+-    return true;
++  if (IsVistaOrLater()) {
++    /* We explicitly draw dropdown buttons in HTML content 1px bigger
++     * up, right, and bottom so that they overlap the dropdown's border
++     * like they're supposed to.
++     */
++    if (aWidgetType == NS_THEME_DROPDOWN_BUTTON &&
++        IsHTMLContent(aFrame) &&
++        !IsWidgetStyled(aFrame->GetParent()->PresContext(),
++                        aFrame->GetParent(),
++                        NS_THEME_DROPDOWN))
++    {
++      int32_t p2a = aContext->AppUnitsPerDevPixel();
++      /* Note: no overflow on the left */
++      nsMargin m(p2a, p2a, p2a, 0);
++      aOverflowRect->Inflate (m);
++      return true;
++    }
+   }
+ #endif
+ 
+@@ -2261,18 +2348,21 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsPresContext* aPresContext, nsIFrame* aF
+     case NS_THEME_SCALE_THUMB_VERTICAL:
+     {
+       *aIsOverridable = false;
+-      // GetThemePartAndState returns odd values for
++      // on Vista, GetThemePartAndState returns odd values for
+       // scale thumbs, so use a hardcoded size instead.
+-      if (aWidgetType == NS_THEME_SCALE_THUMB_HORIZONTAL ||
+-          (aWidgetType == NS_THEME_RANGE_THUMB && IsRangeHorizontal(aFrame))) {
+-        aResult->width = 12;
+-        aResult->height = 20;
+-      }
+-      else {
+-        aResult->width = 20;
+-        aResult->height = 12;
++      if (IsVistaOrLater()) {
++        if (aWidgetType == NS_THEME_SCALE_THUMB_HORIZONTAL ||
++            (aWidgetType == NS_THEME_RANGE_THUMB && IsRangeHorizontal(aFrame))) {
++          aResult->width = 12;
++          aResult->height = 20;
++        }
++        else {
++          aResult->width = 20;
++          aResult->height = 12;
++        }
++        return NS_OK;
+       }
+-      return NS_OK;
++      break;
+     }
+ 
+     case NS_THEME_SCROLLBAR:
+@@ -2309,6 +2399,11 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsPresContext* aPresContext, nsIFrame* aF
+       // stores that info in nsUXThemeData.
+       aResult->width = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_RESTORE].cx;
+       aResult->height = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_RESTORE].cy;
++      // For XP, subtract 4 from system metrics dimensions.
++      if (!IsVistaOrLater()) {
++        aResult->width -= 4;
++        aResult->height -= 4;
++      }
+       AddPaddingRect(aResult, CAPTIONBUTTON_RESTORE);
+       *aIsOverridable = false;
+       return NS_OK;
+@@ -2316,6 +2411,10 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsPresContext* aPresContext, nsIFrame* aF
+     case NS_THEME_WINDOW_BUTTON_MINIMIZE:
+       aResult->width = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_MINIMIZE].cx;
+       aResult->height = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_MINIMIZE].cy;
++      if (!IsVistaOrLater()) {
++        aResult->width -= 4;
++        aResult->height -= 4;
++      }
+       AddPaddingRect(aResult, CAPTIONBUTTON_MINIMIZE);
+       *aIsOverridable = false;
+       return NS_OK;
+@@ -2323,6 +2422,10 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsPresContext* aPresContext, nsIFrame* aF
+     case NS_THEME_WINDOW_BUTTON_CLOSE:
+       aResult->width = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_CLOSE].cx;
+       aResult->height = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_CLOSE].cy;
++      if (!IsVistaOrLater()) {
++        aResult->width -= 4;
++        aResult->height -= 4;
++      }
+       AddPaddingRect(aResult, CAPTIONBUTTON_CLOSE);
+       *aIsOverridable = false;
+       return NS_OK;
+@@ -2440,9 +2543,18 @@ nsNativeThemeWin::WidgetStateChanged(nsIFrame* aFrame, uint8_t aWidgetType,
+     return NS_OK;
+   }
+ 
++  // On Vista, the scrollbar buttons need to change state when the track has/doesn't have hover
++  if (!IsVistaOrLater() &&
++      (aWidgetType == NS_THEME_SCROLLBAR_TRACK_VERTICAL || 
++      aWidgetType == NS_THEME_SCROLLBAR_TRACK_HORIZONTAL)) {
++    *aShouldRepaint = false;
++    return NS_OK;
++  }
++
+   // We need to repaint the dropdown arrow in vista HTML combobox controls when
+   // the control is closed to get rid of the hover effect.
+-  if ((aWidgetType == NS_THEME_DROPDOWN || aWidgetType == NS_THEME_DROPDOWN_BUTTON) &&
++  if (IsVistaOrLater() &&
++      (aWidgetType == NS_THEME_DROPDOWN || aWidgetType == NS_THEME_DROPDOWN_BUTTON) &&
+       IsHTMLContent(aFrame))
+   {
+     *aShouldRepaint = true;
+diff --git a/widget/windows/nsTextStore.cpp b/widget/windows/nsTextStore.cpp
+index 40f80f0..8fd5165 100644
+--- a/widget/windows/nsTextStore.cpp
++++ b/widget/windows/nsTextStore.cpp
+@@ -830,16 +830,29 @@ TSFStaticSink::Init(ITfThreadMgr* aThreadMgr,
+   }
+ 
+   // On Vista or later, Windows let us know activate IME changed only with
+-  // ITfInputProcessorProfileActivationSink.
++  // ITfInputProcessorProfileActivationSink.  However, it's not available on XP.
++  // On XP, ITfActiveLanguageProfileNotifySink is available for it.
+   // NOTE: Each OnActivated() should be called when TSF becomes available.
+-  hr = source->AdviseSink(IID_ITfInputProcessorProfileActivationSink,
+-                 static_cast<ITfInputProcessorProfileActivationSink*>(this),
+-                 &mIPProfileCookie);
+-  if (FAILED(hr) || mIPProfileCookie == TF_INVALID_COOKIE) {
+-    PR_LOG(sTextStoreLog, PR_LOG_ERROR,
+-      ("TSF: 0x%p TSFStaticSink::Init() FAILED to install "
+-       "ITfInputProcessorProfileActivationSink (0x%08X)", this, hr));
+-    return false;
++  if (IsVistaOrLater()) {
++    hr = source->AdviseSink(IID_ITfInputProcessorProfileActivationSink,
++                   static_cast<ITfInputProcessorProfileActivationSink*>(this),
++                   &mIPProfileCookie);
++    if (FAILED(hr) || mIPProfileCookie == TF_INVALID_COOKIE) {
++      PR_LOG(sTextStoreLog, PR_LOG_ERROR,
++        ("TSF: 0x%p TSFStaticSink::Init() FAILED to install "
++         "ITfInputProcessorProfileActivationSink (0x%08X)", this, hr));
++      return false;
++    }
++  } else {
++    hr = source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink,
++                   static_cast<ITfActiveLanguageProfileNotifySink*>(this),
++                   &mLangProfileCookie);
++    if (FAILED(hr) || mLangProfileCookie == TF_INVALID_COOKIE) {
++      PR_LOG(sTextStoreLog, PR_LOG_ERROR,
++        ("TSF: 0x%p TSFStaticSink::Init() FAILED to install "
++         "ITfActiveLanguageProfileNotifySink (0x%08X)", this, hr));
++      return false;
++    }
+   }
+ 
+   PR_LOG(sTextStoreLog, PR_LOG_ALWAYS,
+@@ -978,40 +991,88 @@ TSFStaticSink::EnsureInitActiveTIPKeyboard()
+     return true;
+   }
+ 
+-  nsRefPtr<ITfInputProcessorProfileMgr> profileMgr;
+-  HRESULT hr =
+-    mInputProcessorProfiles->QueryInterface(IID_ITfInputProcessorProfileMgr,
+-                                            getter_AddRefs(profileMgr));
+-  if (FAILED(hr) || !profileMgr) {
+-    PR_LOG(sTextStoreLog, PR_LOG_ERROR,
+-      ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), FAILED "
+-       "to get input processor profile manager, hr=0x%08X", this, hr));
+-    return false;
+-  }
++  if (IsVistaOrLater()) {
++    nsRefPtr<ITfInputProcessorProfileMgr> profileMgr;
++    HRESULT hr =
++      mInputProcessorProfiles->QueryInterface(IID_ITfInputProcessorProfileMgr,
++                                              getter_AddRefs(profileMgr));
++    if (FAILED(hr) || !profileMgr) {
++      PR_LOG(sTextStoreLog, PR_LOG_ERROR,
++        ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), FAILED "
++         "to get input processor profile manager, hr=0x%08X", this, hr));
++      return false;
++    }
++
++    TF_INPUTPROCESSORPROFILE profile;
++    hr = profileMgr->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &profile);
++    if (hr == S_FALSE) {
++      PR_LOG(sTextStoreLog, PR_LOG_ALWAYS,
++        ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), FAILED "
++         "to get active keyboard layout profile due to no active profile, "
++         "hr=0x%08X", this, hr));
++      // XXX Should we call OnActivated() with arguments like non-TIP in this
++      //     case?
++      return false;
++    }
++    if (FAILED(hr)) {
++      PR_LOG(sTextStoreLog, PR_LOG_ERROR,
++        ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), FAILED "
++         "to get active TIP keyboard, hr=0x%08X", this, hr));
++      return false;
++    }
+ 
+-  TF_INPUTPROCESSORPROFILE profile;
+-  hr = profileMgr->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &profile);
+-  if (hr == S_FALSE) {
+     PR_LOG(sTextStoreLog, PR_LOG_ALWAYS,
++      ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), "
++       "calling OnActivated() manually...", this));
++    OnActivated(profile.dwProfileType, profile.langid, profile.clsid,
++                profile.catid, profile.guidProfile, ::GetKeyboardLayout(0),
++                TF_IPSINK_FLAG_ACTIVE);
++    return true;
++  }
++
++  LANGID langID;
++  HRESULT hr = mInputProcessorProfiles->GetCurrentLanguage(&langID);
++  if (FAILED(hr)) {
++    PR_LOG(sTextStoreLog, PR_LOG_ERROR,
+       ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), FAILED "
+-       "to get active keyboard layout profile due to no active profile, "
+-       "hr=0x%08X", this, hr));
+-    // XXX Should we call OnActivated() with arguments like non-TIP in this
+-    //     case?
++       "to get current language ID, hr=0x%08X", this, hr));
+     return false;
+   }
+-  if (FAILED(hr)) {
++
++  nsRefPtr<IEnumTfLanguageProfiles> enumLangProfiles;
++  hr = mInputProcessorProfiles->EnumLanguageProfiles(langID,
++                                  getter_AddRefs(enumLangProfiles));
++  if (FAILED(hr) || !enumLangProfiles) {
+     PR_LOG(sTextStoreLog, PR_LOG_ERROR,
+       ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), FAILED "
+-       "to get active TIP keyboard, hr=0x%08X", this, hr));
++       "to get language profiles enumerator, hr=0x%08X", this, hr));
+     return false;
+   }
+ 
++  TF_LANGUAGEPROFILE profile;
++  ULONG fetch = 0;
++  while (SUCCEEDED(enumLangProfiles->Next(1, &profile, &fetch)) && fetch) {
++    if (!profile.fActive || profile.catid != GUID_TFCAT_TIP_KEYBOARD) {
++      continue;
++    }
++    PR_LOG(sTextStoreLog, PR_LOG_ALWAYS,
++      ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), "
++       "calling OnActivated() manually...", this));
++    bool isTIP = profile.guidProfile != GUID_NULL;
++    OnActivated(isTIP ? TF_PROFILETYPE_INPUTPROCESSOR :
++                        TF_PROFILETYPE_KEYBOARDLAYOUT,
++                profile.langid, profile.clsid, profile.catid,
++                profile.guidProfile, ::GetKeyboardLayout(0),
++                TF_IPSINK_FLAG_ACTIVE);
++    return true;
++  }
++
+   PR_LOG(sTextStoreLog, PR_LOG_ALWAYS,
+     ("TSF: 0x%p   TSFStaticSink::EnsureInitActiveLanguageProfile(), "
+-     "calling OnActivated() manually...", this));
+-  OnActivated(profile.dwProfileType, profile.langid, profile.clsid,
+-              profile.catid, profile.guidProfile, ::GetKeyboardLayout(0),
++     "calling OnActivated() without active TIP manually...", this));
++  OnActivated(TF_PROFILETYPE_KEYBOARDLAYOUT,
++              langID, CLSID_NULL, GUID_TFCAT_TIP_KEYBOARD,
++              GUID_NULL, ::GetKeyboardLayout(0),
+               TF_IPSINK_FLAG_ACTIVE);
+   return true;
+ }
+@@ -4485,7 +4546,7 @@ nsTextStore::Initialize()
+ 
+   bool enableTsf =
+     Preferences::GetBool(kPrefNameForceEnableTSF, false) ||
+-    Preferences::GetBool(kPrefNameEnableTSF, false);
++    (IsVistaOrLater() && Preferences::GetBool(kPrefNameEnableTSF, false));
+   PR_LOG(sTextStoreLog, PR_LOG_ALWAYS,
+     ("TSF:   nsTextStore::Initialize(), TSF is %s",
+      enableTsf ? "enabled" : "disabled"));
+@@ -4993,12 +5054,19 @@ nsTextStore::CurrentKeyboardLayoutHasIME()
+     sInputProcessorProfiles->QueryInterface(IID_ITfInputProcessorProfileMgr,
+                                             getter_AddRefs(profileMgr));
+   if (FAILED(hr) || !profileMgr) {
++    // On Windows Vista or later, ImmIsIME() API always returns true.
+     // If we failed to obtain the profile manager, we cannot know if current
+     // keyboard layout has IME.
+-    PR_LOG(sTextStoreLog, PR_LOG_ERROR,
+-      ("TSF:   nsTextStore::CurrentKeyboardLayoutHasIME() FAILED to query "
+-       "ITfInputProcessorProfileMgr"));
+-    return false;
++    if (IsVistaOrLater()) {
++      PR_LOG(sTextStoreLog, PR_LOG_ERROR,
++        ("TSF:   nsTextStore::CurrentKeyboardLayoutHasIME() FAILED to query "
++         "ITfInputProcessorProfileMgr"));
++      return false;
++    }
++    // If the profiles instance doesn't have ITfInputProcessorProfileMgr
++    // interface, that means probably we're running on WinXP or WinServer2003
++    // (except WinServer2003 R2).  Then, we should use ImmIsIME().
++    return ::ImmIsIME(::GetKeyboardLayout(0));
+   }
+ 
+   TF_INPUTPROCESSORPROFILE profile;
+diff --git a/widget/windows/nsUXThemeData.cpp b/widget/windows/nsUXThemeData.cpp
+index 53379f3..f787bcc 100644
+--- a/widget/windows/nsUXThemeData.cpp
++++ b/widget/windows/nsUXThemeData.cpp
+@@ -142,9 +142,10 @@ nsUXThemeData::InitTitlebarInfo()
+   sCommandButtons[3].cx = sCommandButtons[0].cx * 3;
+   sCommandButtons[3].cy = sCommandButtons[0].cy;
+ 
+-  // Trigger a refresh on the next layout.
+-  sTitlebarInfoPopulatedAero = sTitlebarInfoPopulatedThemed = false;
+-
++  // Use system metrics for pre-vista, otherwise trigger a
++  // refresh on the next layout.
++  sTitlebarInfoPopulatedAero = sTitlebarInfoPopulatedThemed =
++    !IsVistaOrLater();
+ }
+ 
+ // static
+@@ -279,7 +280,7 @@ void
+ nsUXThemeData::UpdateNativeThemeInfo()
+ {
+   // Trigger a refresh of themed button metrics if needed
+-  sTitlebarInfoPopulatedThemed = false;
++  sTitlebarInfoPopulatedThemed = !IsVistaOrLater();
+ 
+   sIsDefaultWindowsTheme = false;
+   sThemeId = LookAndFeel::eWindowsTheme_Generic;
+diff --git a/widget/windows/nsWindow.cpp b/widget/windows/nsWindow.cpp
+index 6262e29..0f53f21 100644
+--- a/widget/windows/nsWindow.cpp
++++ b/widget/windows/nsWindow.cpp
+@@ -504,7 +504,7 @@ nsWindow::Create(nsIWidget *aParent,
+       parent = nullptr;
+     }
+ 
+-    if (!IsWin8OrLater() &&
++    if (IsVistaOrLater() && !IsWin8OrLater() &&
+         HasBogusPopupsDropShadowOnMultiMonitor()) {
+       extendedStyle |= WS_EX_COMPOSITED;
+     }
+@@ -633,11 +633,13 @@ nsWindow::Create(nsIWidget *aParent,
+   // before any visible windows, and after the profile has been initialized),
+   // do some initialization work.
+   if (sTrimOnMinimize == 2 && mWindowType == eWindowType_invisible) {
+-    // Our internal trim prevention logic has little to no effect on current
+-    // Windows versions. Since this feature has been the source of numerous
+-    // bugs over the years, disable it (sTrimOnMinimize=1).
++    // Our internal trim prevention logic is effective on 2K/XP at maintaining
++    // the working set when windows are minimized, but on Vista and up it has
++    // little to no effect. Since this feature has been the source of numerous
++    // bugs over the years, disable it (sTrimOnMinimize=1) on Vista and up.
+     sTrimOnMinimize =
+-      Preferences::GetBool("config.trim_on_minimize", 1);
++      Preferences::GetBool("config.trim_on_minimize",
++        IsVistaOrLater() ? 1 : 0);
+     sSwitchKeyboardLayout =
+       Preferences::GetBool("intl.keyboard.per_window_layout", false);
+   }
+@@ -1259,11 +1261,11 @@ bool nsWindow::IsVisible() const
+  *
+  **************************************************************/
+ 
+-// Visual styles sometimes require window clipping regions to be applied for proper
++// XP and Vista visual styles sometimes require window clipping regions to be applied for proper
+ // transparency. These routines are called on size and move operations.
+ void nsWindow::ClearThemeRegion()
+ {
+-  if (!HasGlass() &&
++  if (IsVistaOrLater() && !HasGlass() &&
+       (mWindowType == eWindowType_popup && !IsPopupWithTitleBar() &&
+        (mPopupType == ePopupTypeTooltip || mPopupType == ePopupTypePanel))) {
+     SetWindowRgn(mWnd, nullptr, false);
+@@ -1277,7 +1279,7 @@ void nsWindow::SetThemeRegion()
+   // so default constants are used for part and state. At some point we might need part and
+   // state values from nsNativeThemeWin's GetThemePartAndState, but currently windows that
+   // change shape based on state haven't come up.
+-  if (!HasGlass() &&
++  if (IsVistaOrLater() && !HasGlass() &&
+       (mWindowType == eWindowType_popup && !IsPopupWithTitleBar() &&
+        (mPopupType == ePopupTypeTooltip || mPopupType == ePopupTypePanel))) {
+     HRGN hRgn = nullptr;
+@@ -3436,13 +3438,17 @@ nsWindow::OverrideSystemMouseScrollSpeed(double aOriginalDeltaX,
+     return NS_OK;
+   }
+ 
+-  if (!::SystemParametersInfo(SPI_GETWHEELSCROLLCHARS, 0, &systemSpeed, 0)) {
+-    return NS_ERROR_FAILURE;
+-  }
+-  // The default horizontal scrolling speed is 3, this is defined on the
+-  // document of SystemParametersInfo in MSDN.
+-  if (systemSpeed != kSystemDefaultScrollingSpeed) {
+-    return NS_OK;
++  // Only Vista and later, Windows has the system setting of horizontal
++  // scrolling by the mouse wheel.
++  if (IsVistaOrLater()) {
++    if (!::SystemParametersInfo(SPI_GETWHEELSCROLLCHARS, 0, &systemSpeed, 0)) {
++      return NS_ERROR_FAILURE;
++    }
++    // The default horizontal scrolling speed is 3, this is defined on the
++    // document of SystemParametersInfo in MSDN.
++    if (systemSpeed != kSystemDefaultScrollingSpeed) {
++      return NS_OK;
++    }
+   }
+ 
+   // Limit the overridden delta value from the system settings.  The mouse
 diff --git a/xpcom/ds/TimeStamp_windows.cpp b/xpcom/ds/TimeStamp_windows.cpp
 index 2f7cc6b..b48784b 100644
 --- a/xpcom/ds/TimeStamp_windows.cpp
@@ -532,6 +1846,62 @@ index 2f7cc6b..b48784b 100644
    return TimeStamp(TimeStampValue(GTC, QPC, useQPC));
  }
  
+diff --git a/xpcom/glue/nsThreadUtils.cpp b/xpcom/glue/nsThreadUtils.cpp
+index 1da2e0f..9346bd1 100644
+--- a/xpcom/glue/nsThreadUtils.cpp
++++ b/xpcom/glue/nsThreadUtils.cpp
+@@ -18,6 +18,8 @@
+ 
+ #ifdef XP_WIN
+ #include <windows.h>
++#include "mozilla/WindowsVersion.h"
++using mozilla::IsVistaOrLater;
+ #elif defined(XP_MACOSX)
+ #include <sys/resource.h>
+ #endif
+@@ -345,7 +347,8 @@ nsThreadPoolNaming::SetThreadPoolName(const nsACString& aPoolName,
+ nsAutoLowPriorityIO::nsAutoLowPriorityIO()
+ {
+ #if defined(XP_WIN)
+-  lowIOPrioritySet = SetThreadPriority(GetCurrentThread(),
++  lowIOPrioritySet = IsVistaOrLater() &&
++                     SetThreadPriority(GetCurrentThread(),
+                                        THREAD_MODE_BACKGROUND_BEGIN);
+ #elif defined(XP_MACOSX)
+   oldPriority = getiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD);
+diff --git a/xpcom/io/nsLocalFileWin.cpp b/xpcom/io/nsLocalFileWin.cpp
+index 8408632..ee11a56 100644
+--- a/xpcom/io/nsLocalFileWin.cpp
++++ b/xpcom/io/nsLocalFileWin.cpp
+@@ -1916,18 +1916,21 @@ nsLocalFile::CopySingleFile(nsIFile* aSourceFile, nsIFile* aDestParent,
+ 
+   // Pass the flag COPY_FILE_NO_BUFFERING to CopyFileEx as we may be copying
+   // to a SMBV2 remote drive. Without this parameter subsequent append mode
+-  // file writes can cause the resultant file to become corrupt. With a 7200RPM
+-  // hard drive:
++  // file writes can cause the resultant file to become corrupt. We only need to do
++  // this if the major version of Windows is > 5(Only Windows Vista and above
++  // can support SMBV2).  With a 7200RPM hard drive:
+   // Copying a 1KB file with COPY_FILE_NO_BUFFERING takes about 30-60ms.
+   // Copying a 1KB file without COPY_FILE_NO_BUFFERING takes < 1ms.
+   // So we only use COPY_FILE_NO_BUFFERING when we have a remote drive.
+   int copyOK;
+   DWORD dwCopyFlags = COPY_FILE_ALLOW_DECRYPTED_DESTINATION;
+-  bool path1Remote, path2Remote;
+-  if (!IsRemoteFilePath(filePath.get(), path1Remote) ||
+-      !IsRemoteFilePath(destPath.get(), path2Remote) ||
+-      path1Remote || path2Remote) {
+-    dwCopyFlags |= COPY_FILE_NO_BUFFERING;
++  if (IsVistaOrLater()) {
++    bool path1Remote, path2Remote;
++    if (!IsRemoteFilePath(filePath.get(), path1Remote) ||
++        !IsRemoteFilePath(destPath.get(), path2Remote) ||
++        path1Remote || path2Remote) {
++      dwCopyFlags |= COPY_FILE_NO_BUFFERING;
++    }
+   }
+ 
+   if (!move) {
 -- 
 2.8.2.windows.1
 
