@@ -1,19 +1,19 @@
-### Mypal
+### About Mypal
 
-This is the web browser which based on monchild productions palemoon code.
+Mypal is a current and maintained Windows XP web browser. Mypal is based on Moonchild Productions' Pale Moon code, which itself was forked from Mozilla's FireFox code several years ago, but is also maintained and kept current.
 
-First and the foremost goal of this article, is to have a good browser for winxp. And Palemoon is becauase it made for users, but not otherwise.
+The goal of Mypal is to provide a current, secure, and reliable web browser for Windows XP. Mypal operates identically to Pale Moon with some minor exceptions. Introduced new portable system and certain settings, including unused legacy Mozilla code, have been removed.
 
-Mypal handle webpages excactly as the Palemoon,  no differnce there, for now.
+### Download / Updates
 
-But differences are there, in other things like portable modes, removen some bunch of mozilla legacy junk and some settings.
+[Download](https://github.com/Feodor2/Mypal/releases) Mypal at GitHub. Automatic updates are not currently supported, so you will need to check for new releases manually. Updates can be installed over existing Mypal installations without loss of data and settings.
+Documentation
 
-For mypal you are not to request the support from palemoon official, i willing provide the support myself, however do not wait that i shall respond quickly.
+Mypal [documentation](https://github.com/Feodor2/Mypal/wiki) is available online in wiki format.
 
-If you not have concern with tech and programing do not bother youselves with patches and other github stuff except issues and wiki.
+### Support / Contact
 
-### [Download](https://github.com/Feodor2/Mypal/releases)
+Support is provided exclusively on GitHub. Please be patient with your support requests. You can also review existing [issues](https://github.com/Feodor2/Mypal/issues) on GitHub before requesting support.
 
-### Support or Contact
+Please do not request support from Moonchild Productions or in Pale Moon forums. Mypal is an independent project and support is provided solely on GitHub by me.
 
-Having trouble with Pages? Check out our [documentation](https://github.com/Feodor2/Mypal/wiki) or [ask questions](https://github.com/Feodor2/Mypal/issues) and we’ll help you sort it out.
