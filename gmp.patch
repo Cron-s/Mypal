@@ -1,6 +1,6 @@
-From 8532f29b966dc8ccf8bc84e94786f72e4fbcf1ce Mon Sep 17 00:00:00 2001
+From 422a2928d8ac9a5d34a2297817786135885a6aea Mon Sep 17 00:00:00 2001
 From: fedor <fedor@mail.ru>
-Date: Wed, 14 Mar 2018 08:39:39 +0300
+Date: Mon, 26 Mar 2018 00:18:11 +0300
 Subject: [PATCH] gmp
 
 ---
@@ -413,7 +413,7 @@ Subject: [PATCH] gmp
  delete mode 100644 toolkit/mozapps/extensions/test/xpcshell/test_gmpProvider.js
 
 diff --git a/browser/installer/package-manifest.in b/browser/installer/package-manifest.in
-index cb19547..19a3cc6 100644
+index fb54ba9..01082ba 100644
 --- a/browser/installer/package-manifest.in
 +++ b/browser/installer/package-manifest.in
 @@ -197,7 +197,6 @@
@@ -424,7 +424,7 @@ index cb19547..19a3cc6 100644
  #ifdef MOZ_WEBRTC
  @RESPATH@/components/content_webrtc.xpt
  #endif
-@@ -652,6 +651,10 @@
+@@ -651,6 +650,10 @@
  @BINPATH@/@MOZ_D3DCOMPILER_VISTA_DLL@
  #endif
  
@@ -436,10 +436,10 @@ index cb19547..19a3cc6 100644
  
  ; [Browser Chrome Files]
 diff --git a/configure.in b/configure.in
-index e7faabb..fdd069a 100644
+index cc22c37..c8d795b 100644
 --- a/configure.in
 +++ b/configure.in
-@@ -3894,7 +3894,6 @@ MOZ_TIME_MANAGER=
+@@ -3868,7 +3868,6 @@ MOZ_TIME_MANAGER=
  MOZ_AUDIO_CHANNEL_MANAGER=
  NSS_NO_LIBPKIX=
  MOZ_CONTENT_SANDBOX=
@@ -447,7 +447,7 @@ index e7faabb..fdd069a 100644
  MOZ_SANDBOX=
  MOZ_DEVTOOLS=
  
-@@ -6241,38 +6240,6 @@ fi
+@@ -6145,38 +6144,6 @@ fi
  
  AC_SUBST(MOZ_CONTENT_SANDBOX)
  
@@ -539,10 +539,10 @@ index bfd32e6..d52c702 100644
    },
  
 diff --git a/dom/media/fmp4/MP4Decoder.cpp b/dom/media/fmp4/MP4Decoder.cpp
-index 2dc545a..d7a6def 100644
+index 91fd22e..f945837 100644
 --- a/dom/media/fmp4/MP4Decoder.cpp
 +++ b/dom/media/fmp4/MP4Decoder.cpp
-@@ -220,12 +220,6 @@ IsGonkMP4DecoderAvailable()
+@@ -216,12 +216,6 @@ IsGonkMP4DecoderAvailable()
  }
  
  static bool
@@ -555,7 +555,7 @@ index 2dc545a..d7a6def 100644
  HavePlatformMPEGDecoders()
  {
  #ifdef XP_WIN
-@@ -237,7 +231,6 @@ HavePlatformMPEGDecoders()
+@@ -233,7 +227,6 @@ HavePlatformMPEGDecoders()
           IsFFmpegAvailable() ||
           IsAppleAvailable() ||
           IsGonkMP4DecoderAvailable() ||
@@ -19041,7 +19041,7 @@ index 3be9bcd..be5dd18 100644
      'mediasource',
      'ogg',
 diff --git a/dom/media/platforms/PlatformDecoderModule.cpp b/dom/media/platforms/PlatformDecoderModule.cpp
-index c9543d2..fbe22dd 100644
+index 07752cb..0b4eec4 100644
 --- a/dom/media/platforms/PlatformDecoderModule.cpp
 +++ b/dom/media/platforms/PlatformDecoderModule.cpp
 @@ -21,7 +21,6 @@
@@ -19051,8 +19051,8 @@ index c9543d2..fbe22dd 100644
 -#include "GMPDecoderModule.h"
  
  #include "mozilla/Preferences.h"
- #include "SharedThreadPool.h"
-@@ -45,7 +44,6 @@ bool PlatformDecoderModule::sGonkDecoderEnabled = false;
+ #include "mozilla/WindowsVersion.h"
+@@ -46,7 +45,6 @@ bool PlatformDecoderModule::sGonkDecoderEnabled = false;
  bool PlatformDecoderModule::sAndroidMCDecoderEnabled = false;
  bool PlatformDecoderModule::sAndroidMCDecoderPreferred = false;
  #endif
@@ -19060,7 +19060,7 @@ index c9543d2..fbe22dd 100644
  
  /* static */
  void
-@@ -75,9 +73,6 @@ PlatformDecoderModule::Init()
+@@ -76,9 +74,6 @@ PlatformDecoderModule::Init()
                                 "media.android-media-codec.preferred", false);
  #endif
  
@@ -20290,7 +20290,7 @@ index 8678834..0000000
 -
 -FAIL_ON_WARNINGS = True
 diff --git a/dom/media/platforms/moz.build b/dom/media/platforms/moz.build
-index bd125a5..46b6f98 100644
+index 42c7249..103256f 100644
 --- a/dom/media/platforms/moz.build
 +++ b/dom/media/platforms/moz.build
 @@ -17,8 +17,6 @@ UNIFIED_SOURCES += [
@@ -20448,10 +20448,10 @@ index 0a2f950..49c9081 100644
      default:
        MOZ_CRASH("Bad process type in GoannaChildProcessHost");
 diff --git a/layout/build/nsLayoutModule.cpp b/layout/build/nsLayoutModule.cpp
-index 6779781..7a56e06 100644
+index 4f35cd7..2160b3f 100644
 --- a/layout/build/nsLayoutModule.cpp
 +++ b/layout/build/nsLayoutModule.cpp
-@@ -234,8 +234,6 @@ static void Shutdown();
+@@ -229,8 +229,6 @@ static void Shutdown();
  #endif
  #include "MediaManager.h"
  
@@ -20460,7 +20460,7 @@ index 6779781..7a56e06 100644
  #include "mozilla/dom/presentation/PresentationDeviceManager.h"
  
  #include "mozilla/TextInputProcessor.h"
-@@ -253,7 +251,6 @@ using mozilla::dom::TCPServerSocketChild;
+@@ -248,7 +246,6 @@ using mozilla::dom::TCPServerSocketChild;
  using mozilla::dom::UDPSocketChild;
  using mozilla::dom::time::TimeService;
  using mozilla::net::StreamingProtocolControllerService;
@@ -20468,7 +20468,7 @@ index 6779781..7a56e06 100644
  
  // Transformiix
  /* 5d5d92cd-6bf8-11d9-bf4a-000a95dc234c */
-@@ -609,8 +606,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(TCPSocketParent)
+@@ -599,8 +596,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(TCPSocketParent)
  NS_GENERIC_FACTORY_CONSTRUCTOR(TCPServerSocketChild)
  NS_GENERIC_FACTORY_CONSTRUCTOR(UDPSocketChild)
  
@@ -20477,11 +20477,16 @@ index 6779781..7a56e06 100644
  #ifdef ACCESSIBILITY
  #include "nsAccessibilityService.h"
  
-@@ -786,3 +781,2 @@
+@@ -772,8 +767,6 @@ NS_DEFINE_NAMED_CID(NS_SYNTHVOICEREGISTRY_CID);
+ NS_DEFINE_NAMED_CID(NS_ACCESSIBILITY_SERVICE_CID);
+ #endif
  
 -NS_DEFINE_NAMED_CID(GECKO_MEDIA_PLUGIN_SERVICE_CID);
-
-@@ -1054,7 +1047,6 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
+-
+ NS_DEFINE_NAMED_CID(PRESENTATION_DEVICE_MANAGER_CID);
+ 
+ NS_DEFINE_NAMED_CID(TEXT_INPUT_PROCESSOR_CID);
+@@ -1040,7 +1033,6 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
    { &kTCPSOCKETPARENT_CID, false, nullptr, TCPSocketParentConstructor },
    { &kTCPSERVERSOCKETCHILD_CID, false, nullptr, TCPServerSocketChildConstructor },
    { &kUDPSOCKETCHILD_CID, false, nullptr, UDPSocketChildConstructor },
@@ -20489,6 +20494,14 @@ index 6779781..7a56e06 100644
    { &kNS_TIMESERVICE_CID, false, nullptr, nsITimeServiceConstructor },
    { &kNS_MEDIASTREAMCONTROLLERSERVICE_CID, false, nullptr, nsIStreamingProtocolControllerServiceConstructor },
  #ifdef MOZ_WIDGET_GONK
+@@ -1200,7 +1192,6 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
+   { "@mozilla.org/accessibilityService;1", &kNS_ACCESSIBILITY_SERVICE_CID },
+   { "@mozilla.org/accessibleRetrieval;1", &kNS_ACCESSIBILITY_SERVICE_CID },
+ #endif
+-  { "@mozilla.org/goanna-media-plugin-service;1",  &kGECKO_MEDIA_PLUGIN_SERVICE_CID },
+   { PRESENTATION_DEVICE_MANAGER_CONTRACTID, &kPRESENTATION_DEVICE_MANAGER_CID },
+   { "@mozilla.org/text-input-processor;1", &kTEXT_INPUT_PROCESSOR_CID },
+   { nullptr }
 diff --git a/media/gmp-clearkey/0.1/AnnexB.cpp b/media/gmp-clearkey/0.1/AnnexB.cpp
 deleted file mode 100644
 index a22d62a..0000000
@@ -29444,10 +29457,10 @@ index 1e1b9e7..0adbb11 100644
    init.mCancelable = true;
  
 diff --git a/mobile/android/app/mobile.js b/mobile/android/app/mobile.js
-index f673483..aa19e4b 100644
+index 87ffc96..2ad52dc 100644
 --- a/mobile/android/app/mobile.js
 +++ b/mobile/android/app/mobile.js
-@@ -788,9 +788,6 @@ pref("device.storage.enabled", true);
+@@ -801,9 +801,6 @@ pref("device.storage.enabled", true);
  // Enable meta-viewport support for font inflation code
  pref("dom.meta-viewport.enabled", true);
  
@@ -29458,10 +29471,10 @@ index f673483..aa19e4b 100644
  // auto = color automatically adjusts according to ambient light level
  // (auto only works on platforms where the 'devicelight' event is enabled)
 diff --git a/mobile/android/chrome/content/browser.js b/mobile/android/chrome/content/browser.js
-index c1a2f13..91a27b8 100644
+index 2d2ffc3..e100611 100644
 --- a/mobile/android/chrome/content/browser.js
 +++ b/mobile/android/chrome/content/browser.js
-@@ -99,9 +99,6 @@ XPCOMUtils.defineLazyModuleGetter(this, "SharedPreferences",
+@@ -100,9 +100,6 @@ XPCOMUtils.defineLazyModuleGetter(this, "SharedPreferences",
  XPCOMUtils.defineLazyModuleGetter(this, "Notifications",
                                    "resource://gre/modules/Notifications.jsm");
  
@@ -29471,7 +29484,7 @@ index c1a2f13..91a27b8 100644
  XPCOMUtils.defineLazyModuleGetter(this, "ReaderMode", "resource://gre/modules/ReaderMode.jsm");
  
  let lazilyLoadedBrowserScripts = [
-@@ -372,8 +369,8 @@ var BrowserApp = {
+@@ -373,8 +370,8 @@ var BrowserApp = {
  
            // Delay this a minute because there's no rush
            setTimeout(() => {
@@ -29482,7 +29495,7 @@ index c1a2f13..91a27b8 100644
            }, 1000 * 60);
          }, Ci.nsIThread.DISPATCH_NORMAL);
  
-@@ -1227,9 +1224,9 @@ var BrowserApp = {
+@@ -1228,9 +1225,9 @@ var BrowserApp = {
    },
  
    quit: function quit(aClear = { sanitize: {}, dontSaveSession: false }) {
@@ -34276,7 +34289,7 @@ index ae60185..c535091 100644
  
  if CONFIG['ENABLE_TESTS']:
 diff --git a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
-index 157b719..d451a7c 100644
+index 0650f34..cef8be0 100644
 --- a/toolkit/xre/nsAppRunner.cpp
 +++ b/toolkit/xre/nsAppRunner.cpp
 @@ -795,7 +795,7 @@ SYNC_ENUMS(CONTENT, Content)
