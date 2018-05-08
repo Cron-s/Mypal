@@ -1,26 +1,26 @@
-From e2c29f23231c37e6b3c1f13091fe4e650c7b71a2 Mon Sep 17 00:00:00 2001
-From: fedor <fedor@mail.ru>
-Date: Mon, 22 Jan 2018 12:29:18 +0300
-Subject: [PATCH] ffmpeg winxp
+From 76fc5fd483f121e11e0c4e60b2ad20306fd5c409 Mon Sep 17 00:00:00 2001
+From: Fedor <fedor@mail.ru>
+Date: Mon, 7 May 2018 22:28:17 +0300
+Subject: [PATCH] ffmpegXP
 
 ---
  configure.in                                       |   2 +-
  dom/media/fmp4/MP4Decoder.cpp                      |   8 +-
  dom/media/platforms/PlatformDecoderModule.cpp      |   6 +-
  dom/media/platforms/ffmpeg/FFmpegAudioDecoder.cpp  |   9 +-
- dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp   |  57 +++++++++++-
+ dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp   |  63 +++++++++++--
  dom/media/platforms/ffmpeg/FFmpegH264Decoder.cpp   |  36 +++++++-
  dom/media/platforms/ffmpeg/FFmpegLibs.h            |   3 +-
- dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp | 100 ++++++++++++++++++++-
+ dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp | 101 ++++++++++++++++++++-
  dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h   |  42 ++++++++-
- dom/media/platforms/moz.build                      |  11 ++-
- 10 files changed, 246 insertions(+), 28 deletions(-)
+ dom/media/platforms/moz.build                      |  12 ++-
+ 10 files changed, 251 insertions(+), 31 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index 2ba02d3..5822413 100644
+index 411f5e5..5ffce28 100644
 --- a/configure.in
 +++ b/configure.in
-@@ -5191,7 +5191,7 @@ dnl ========================================================
+@@ -5152,7 +5152,7 @@ dnl ========================================================
  dnl FFmpeg H264/AAC Decoding Support
  dnl ========================================================
  case "$OS_TARGET" in
@@ -30,7 +30,7 @@ index 2ba02d3..5822413 100644
  *)
      MOZ_FFMPEG=1
 diff --git a/dom/media/fmp4/MP4Decoder.cpp b/dom/media/fmp4/MP4Decoder.cpp
-index 2dc545a..91fd22e 100644
+index d7a6def..f945837 100644
 --- a/dom/media/fmp4/MP4Decoder.cpp
 +++ b/dom/media/fmp4/MP4Decoder.cpp
 @@ -53,16 +53,12 @@ IsWhitelistedH264Codec(const nsAString& aCodec)
@@ -53,27 +53,18 @@ index 2dc545a..91fd22e 100644
  
    // Just assume what we can play on all platforms the codecs/formats that
 diff --git a/dom/media/platforms/PlatformDecoderModule.cpp b/dom/media/platforms/PlatformDecoderModule.cpp
-index c9543d2..07752cb 100644
+index fbe22dd..0b4eec4 100644
 --- a/dom/media/platforms/PlatformDecoderModule.cpp
 +++ b/dom/media/platforms/PlatformDecoderModule.cpp
-@@ -24,5 +24,6 @@
+@@ -23,6 +23,7 @@
+ #endif
  
  #include "mozilla/Preferences.h"
 +#include "mozilla/WindowsVersion.h"
  #include "SharedThreadPool.h"
  #include "MediaTaskQueue.h"
  
-@@ -84,9 +85,6 @@ PlatformDecoderModule::Init()
- #ifdef MOZ_APPLEMEDIA
-   AppleDecoderModule::Init();
- #endif
--#ifdef MOZ_FFMPEG
--  FFmpegRuntimeLinker::Link();
--#endif
- }
- 
- /* static */
-@@ -118,8 +116,10 @@ PlatformDecoderModule::CreatePDM()
+@@ -113,8 +111,10 @@ PlatformDecoderModule::CreatePDM()
      return CreateBlankDecoderModule();
    }
  #ifdef XP_WIN
@@ -119,7 +110,7 @@ index 104951e..6c0b2c5 100644
    packet.data = const_cast<uint8_t*>(aSample->Data());
    packet.size = aSample->Size();
 diff --git a/dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp b/dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp
-index 1786080..6b89758 100644
+index 87444d9..7381b68 100644
 --- a/dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp
 +++ b/dom/media/platforms/ffmpeg/FFmpegDataDecoder.cpp
 @@ -5,7 +5,10 @@
@@ -148,11 +139,14 @@ index 1786080..6b89758 100644
      NS_WARNING("Couldn't init ffmpeg context");
      return NS_ERROR_FAILURE;
    }
-@@ -71,10 +80,21 @@ FFmpegDataDecoder<LIBAV_VER>::Init()
-     mCodecContext->flags |= CODEC_FLAG_EMU_EDGE;
+@@ -77,10 +86,21 @@ FFmpegDataDecoder<LIBAV_VER>::Init()
    }
+ #endif
  
 -  if (avcodec_open2(mCodecContext, codec, nullptr) < 0) {
+-    NS_WARNING("Couldn't initialise ffmpeg decoder");
+-    avcodec_close(mCodecContext);
+-    av_freep(&mCodecContext);
 +  if (
 +#if defined(XP_WIN)
 +      reinterpret_cast<int(*)(AVCodecContext*,const AVCodec*,AVDictionary**)>(FFmpegRuntimeLinker::avc_ptr[_open2])(mCodecContext, codec, nullptr)
@@ -160,18 +154,18 @@ index 1786080..6b89758 100644
 +      avcodec_open2(mCodecContext, codec, nullptr)
 +#endif
 +     < 0) {
-     NS_WARNING("Couldn't initialise ffmpeg decoder");
++     NS_WARNING("Couldn't initialise ffmpeg decoder");
 +#if defined(XP_WIN)
 +    reinterpret_cast<int(*)(AVCodecContext*)>(FFmpegRuntimeLinker::avc_ptr[_close])(mCodecContext);
 +    reinterpret_cast<void(*)(void*)>(FFmpegRuntimeLinker::avc_ptr[_freep])(&mCodecContext);
 +#else
-     avcodec_close(mCodecContext);
-     av_freep(&mCodecContext);
++     avcodec_close(mCodecContext);
++     av_freep(&mCodecContext);
 +#endif
      return NS_ERROR_FAILURE;
    }
  
-@@ -96,7 +116,11 @@ FFmpegDataDecoder<LIBAV_VER>::Flush()
+@@ -102,7 +122,11 @@ FFmpegDataDecoder<LIBAV_VER>::Flush()
  {
    mTaskQueue->Flush();
    if (mCodecContext) {
@@ -183,7 +177,7 @@ index 1786080..6b89758 100644
    }
    return NS_OK;
  }
-@@ -107,6 +131,11 @@ FFmpegDataDecoder<LIBAV_VER>::Shutdown()
+@@ -113,6 +137,11 @@ FFmpegDataDecoder<LIBAV_VER>::Shutdown()
    StaticMutexAutoLock mon(sMonitor);
  
    if (sFFmpegInitDone && mCodecContext) {
@@ -195,7 +189,7 @@ index 1786080..6b89758 100644
      avcodec_close(mCodecContext);
      av_freep(&mCodecContext);
  #if LIBAVCODEC_VERSION_MAJOR >= 55
-@@ -116,6 +145,7 @@ FFmpegDataDecoder<LIBAV_VER>::Shutdown()
+@@ -122,6 +151,7 @@ FFmpegDataDecoder<LIBAV_VER>::Shutdown()
  #else
      av_freep(&mFrame);
  #endif
@@ -203,7 +197,7 @@ index 1786080..6b89758 100644
    }
    return NS_OK;
  }
-@@ -125,9 +155,18 @@ FFmpegDataDecoder<LIBAV_VER>::PrepareFrame()
+@@ -131,9 +161,18 @@ FFmpegDataDecoder<LIBAV_VER>::PrepareFrame()
  {
  #if LIBAVCODEC_VERSION_MAJOR >= 55
    if (mFrame) {
@@ -223,7 +217,7 @@ index 1786080..6b89758 100644
    }
  #elif LIBAVCODEC_VERSION_MAJOR == 54
    if (mFrame) {
-@@ -147,13 +186,25 @@ FFmpegDataDecoder<LIBAV_VER>::FindAVCodec(AVCodecID aCodec)
+@@ -153,13 +192,25 @@ FFmpegDataDecoder<LIBAV_VER>::FindAVCodec(AVCodecID aCodec)
  {
    StaticMutexAutoLock mon(sMonitor);
    if (!sFFmpegInitDone) {
@@ -353,7 +347,7 @@ index 0372b60..9bfaf34 100644
  
  #endif // __FFmpegLibs_h__
 diff --git a/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp b/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp
-index 05bec24..c4842bb 100644
+index 97fb756..9de5510 100644
 --- a/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp
 +++ b/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.cpp
 @@ -21,6 +21,11 @@ public:
@@ -367,8 +361,8 @@ index 05bec24..c4842bb 100644
 +#else
  static const char* sLibs[] = {
  #if defined(XP_DARWIN)
-   "libavcodec.57.dylib",
-@@ -41,14 +46,16 @@ static const char* sLibs[] = {
+   "libavcodec.58.dylib",
+@@ -44,14 +49,16 @@ static const char* sLibs[] = {
  
  PRLibrary* FFmpegRuntimeLinker::sLinkedLib = nullptr;
  const char* FFmpegRuntimeLinker::sLib = nullptr;
@@ -387,7 +381,7 @@ index 05bec24..c4842bb 100644
  /* static */ bool
  FFmpegRuntimeLinker::Link()
  {
-@@ -58,6 +65,82 @@ FFmpegRuntimeLinker::Link()
+@@ -61,6 +68,82 @@ FFmpegRuntimeLinker::Link()
  
    MOZ_ASSERT(NS_IsMainThread());
  
@@ -470,7 +464,7 @@ index 05bec24..c4842bb 100644
    for (size_t i = 0; i < ArrayLength(sLibs); i++) {
      const char* lib = sLibs[i];
      PRLibSpec lspec;
-@@ -85,8 +168,10 @@ FFmpegRuntimeLinker::Link()
+@@ -88,8 +171,10 @@ FFmpegRuntimeLinker::Link()
  
    sLinkStatus = LinkStatus_FAILED;
    return false;
@@ -481,7 +475,7 @@ index 05bec24..c4842bb 100644
  /* static */ bool
  FFmpegRuntimeLinker::Bind(const char* aLibName)
  {
-@@ -149,6 +234,7 @@ FFmpegRuntimeLinker::Bind(const char* aLibName)
+@@ -161,6 +246,7 @@ FFmpegRuntimeLinker::Bind(const char* aLibName)
  #undef LIBAVCODEC_ALLVERSION
    return true;
  }
@@ -489,11 +483,8 @@ index 05bec24..c4842bb 100644
  
  /* static */ already_AddRefed<PlatformDecoderModule>
  FFmpegRuntimeLinker::CreateDecoderModule()
-@@ -160,13 +246,14 @@ FFmpegRuntimeLinker::CreateDecoderModule()
-   if (!GetVersion(major, minor, micro)) {
-     return  nullptr;
-   }
--
+@@ -175,12 +261,16 @@ FFmpegRuntimeLinker::CreateDecoderModule()
+ 
    nsRefPtr<PlatformDecoderModule> module;
    switch (major) {
 +#if !defined(XP_WIN)
@@ -503,9 +494,13 @@ index 05bec24..c4842bb 100644
      case 56: module = FFmpegDecoderModule<55>::Create(); break;
 +#endif
      case 57: module = FFmpegDecoderModule<57>::Create(); break;
++#if !defined(XP_WIN)
+     case 58: module = FFmpegDecoderModule<58>::Create(); break;
++#endif
      default: module = nullptr;
    }
-@@ -176,6 +263,12 @@ FFmpegRuntimeLinker::CreateDecoderModule()
+   return module.forget();
+@@ -189,6 +279,12 @@ FFmpegRuntimeLinker::CreateDecoderModule()
  /* static */ void
  FFmpegRuntimeLinker::Unlink()
  {
@@ -518,7 +513,7 @@ index 05bec24..c4842bb 100644
    if (sLinkedLib) {
      PR_UnloadLibrary(sLinkedLib);
      sLinkedLib = nullptr;
-@@ -183,6 +276,7 @@ FFmpegRuntimeLinker::Unlink()
+@@ -196,6 +292,7 @@ FFmpegRuntimeLinker::Unlink()
      sLinkStatus = LinkStatus_INIT;
      avcodec_version = nullptr;
    }
@@ -527,7 +522,7 @@ index 05bec24..c4842bb 100644
  
  /* static */ uint32_t
 diff --git a/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h b/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h
-index 05ee8a8..2ddebba 100644
+index 8f80ecb..9adc6a9 100644
 --- a/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h
 +++ b/dom/media/platforms/ffmpeg/FFmpegRuntimeLinker.h
 @@ -9,11 +9,38 @@
@@ -570,7 +565,7 @@ index 05ee8a8..2ddebba 100644
  
  enum {
    AV_FUNC_AVUTIL_MASK = 1 << 8,
-@@ -31,6 +58,8 @@ enum {
+@@ -33,6 +60,8 @@ enum {
    AV_FUNC_AVUTIL_ALL = AV_FUNC_AVCODEC_ALL | AV_FUNC_AVUTIL_MASK
  };
  
@@ -579,7 +574,7 @@ index 05ee8a8..2ddebba 100644
  class FFmpegRuntimeLinker
  {
  public:
-@@ -38,13 +67,18 @@ public:
+@@ -40,13 +69,18 @@ public:
    static void Unlink();
    static already_AddRefed<PlatformDecoderModule> CreateDecoderModule();
    static uint32_t GetVersion(uint32_t& aMajor, uint32_t& aMinor, uint32_t& aMicro);
@@ -602,10 +597,10 @@ index 05ee8a8..2ddebba 100644
      LinkStatus_INIT = 0,
      LinkStatus_FAILED,
 diff --git a/dom/media/platforms/moz.build b/dom/media/platforms/moz.build
-index bd125a5..42c7249 100644
+index 7ad010b..f0ede93 100644
 --- a/dom/media/platforms/moz.build
 +++ b/dom/media/platforms/moz.build
-@@ -30,10 +30,15 @@ if CONFIG['MOZ_FFMPEG']:
+@@ -28,12 +28,16 @@ if CONFIG['MOZ_FFMPEG']:
          'ffmpeg/FFmpegLog.cpp',
          'ffmpeg/FFmpegRuntimeLinker.cpp',
      ]
@@ -615,15 +610,17 @@ index bd125a5..42c7249 100644
 +            'ffmpeg/libav53',
 +            'ffmpeg/libav54',
 +            'ffmpeg/libav55',
++            'ffmpeg/ffmpeg58',
 +        ]
-+
      DIRS += [
 -        'ffmpeg/libav53',
 -        'ffmpeg/libav54',
 -        'ffmpeg/libav55',
          'ffmpeg/ffmpeg57',
+-        'ffmpeg/ffmpeg58',
      ]
      LOCAL_INCLUDES += [
+         'ffmpeg',
 -- 
 2.8.2.windows.1
 

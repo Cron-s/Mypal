@@ -1,7 +1,7 @@
-From 847c8deccf0d7b914857818c32ecef134e76bbd8 Mon Sep 17 00:00:00 2001
-From: fedor <fedor@mail.ru>
-Date: Tue, 20 Feb 2018 10:57:25 +0300
-Subject: [PATCH] restore xp
+From 86b0e9d6e7e758857c8d3d0347ece69c1bd00bd5 Mon Sep 17 00:00:00 2001
+From: Fedor <fedor@mail.ru>
+Date: Mon, 7 May 2018 22:07:07 +0300
+Subject: [PATCH] RestoreXP
 
 ---
  browser/app/Makefile.in                           |   6 -
@@ -21,6 +21,7 @@ Subject: [PATCH] restore xp
  gfx/thebes/gfxWindowsPlatform.cpp                 |  11 +-
  hal/windows/WindowsBattery.cpp                    |  18 ++
  js/src/jit/ExecutableAllocatorWin.cpp             |   5 +-
+ mfbt/WindowsVersion.h                             |  39 ---
  mozglue/build/WindowsDllBlocklist.cpp             |   2 +-
  toolkit/mozapps/installer/windows/nsis/common.nsh |   3 +-
  toolkit/xre/nsAppRunner.cpp                       |   4 +-
@@ -37,7 +38,7 @@ Subject: [PATCH] restore xp
  xpcom/ds/TimeStamp_windows.cpp                    |  52 +++-
  xpcom/glue/nsThreadUtils.cpp                      |   5 +-
  xpcom/io/nsLocalFileWin.cpp                       |  17 +-
- 33 files changed, 715 insertions(+), 258 deletions(-)
+ 34 files changed, 715 insertions(+), 297 deletions(-)
 
 diff --git a/browser/app/Makefile.in b/browser/app/Makefile.in
 index 580fcb1..b60615c 100644
@@ -154,10 +155,10 @@ index 539c342..a5d418e 100644
  IDI_DOCUMENT ICON DOCUMENT_ICO
  IDI_APPLICATION ICON FIREFOX_ICO
 diff --git a/browser/installer/Makefile.in b/browser/installer/Makefile.in
-index 7ba8ae9..03a811c 100644
+index 49c2a42..3e9ce00 100644
 --- a/browser/installer/Makefile.in
 +++ b/browser/installer/Makefile.in
-@@ -60,6 +60,9 @@ DEFINES += -DMOZ_ANGLE_RENDERER=$(MOZ_ANGLE_RENDERER)
+@@ -52,6 +52,9 @@ DEFINES += -DMOZ_ANGLE_RENDERER=$(MOZ_ANGLE_RENDERER)
  ifdef MOZ_D3DCOMPILER_VISTA_DLL
  DEFINES += -DMOZ_D3DCOMPILER_VISTA_DLL=$(MOZ_D3DCOMPILER_VISTA_DLL)
  endif
@@ -185,10 +186,10 @@ index ad171a5..f2d95b6 100644
  
  # File details shared by both the installer and uninstaller
 diff --git a/configure.in b/configure.in
-index 79f208f..f9d3d03 100644
+index 52c416d..411f5e5 100644
 --- a/configure.in
 +++ b/configure.in
-@@ -424,7 +424,7 @@ dnl ========================================================
+@@ -393,7 +393,7 @@ dnl ========================================================
  
  # Target the Windows 8.1 SDK by default
  WINSDK_TARGETVER=603
@@ -197,7 +198,7 @@ index 79f208f..f9d3d03 100644
  
  MOZ_ARG_WITH_STRING(windows-version,
  [  --with-windows-version=WINSDK_TARGETVER
-@@ -2191,8 +2191,11 @@ ia64*-hpux*)
+@@ -2159,8 +2159,11 @@ ia64*-hpux*)
          MKCSHLIB='$(LD) -NOLOGO -DLL -OUT:$@ -PDB:$(LINK_PDBFILE) $(DSO_LDOPTS)'
          MKSHLIB_FORCE_ALL=
          MKSHLIB_UNFORCE_ALL=
@@ -211,7 +212,7 @@ index 79f208f..f9d3d03 100644
          WIN32_CONSOLE_EXE_LDFLAGS=-SUBSYSTEM:CONSOLE,$WIN32_SUBSYSTEM_VERSION
          WIN32_GUI_EXE_LDFLAGS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
          DSO_LDOPTS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
-@@ -5657,6 +5660,9 @@ MOZ_D3D_CPU_SUFFIX=
+@@ -5585,6 +5588,9 @@ MOZ_D3D_CPU_SUFFIX=
  MOZ_HAS_WINSDK_WITH_D3D=
  MOZ_D3DCOMPILER_VISTA_DLL=
  MOZ_D3DCOMPILER_VISTA_DLL_PATH=
@@ -221,7 +222,7 @@ index 79f208f..f9d3d03 100644
  
  case "$target_os" in
  *mingw*)
-@@ -5681,6 +5687,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
+@@ -5609,6 +5615,8 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
    AC_DEFINE(MOZ_WEBGL_CONFORMANT)
  fi
  
@@ -230,7 +231,7 @@ index 79f208f..f9d3d03 100644
  dnl ========================================================
  dnl D3D compiler DLL
  dnl ========================================================
-@@ -5729,20 +5737,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
+@@ -5657,20 +5665,85 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
      MOZ_CHECK_HEADER(d3d10.h, MOZ_HAS_WINSDK_WITH_D3D=1)
    fi
  
@@ -316,7 +317,7 @@ index 79f208f..f9d3d03 100644
    fi
  fi
  
-@@ -7581,6 +7654,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
+@@ -7421,6 +7494,11 @@ MOZ_ARG_ENABLE_BOOL(skia,
  MOZ_ENABLE_SKIA=1,
  MOZ_ENABLE_SKIA=)
  
@@ -328,7 +329,7 @@ index 79f208f..f9d3d03 100644
  MOZ_ARG_DISABLE_BOOL(skia-gpu,
  [  --disable-skia-gpu  Disable use of Skia-GPU],
  MOZ_DISABLE_SKIA_GPU=1,
-@@ -8097,5 +8175,8 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
+@@ -7937,6 +8015,9 @@ AC_SUBST(MOZ_D3D_CPU_SUFFIX)
  AC_SUBST(MOZ_HAS_WINSDK_WITH_D3D)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL)
  AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL_PATH)
@@ -337,6 +338,7 @@ index 79f208f..f9d3d03 100644
 +AC_SUBST(MOZ_D3DCOMPILER_XP_CAB)
  
  AC_SUBST(MOZ_ANDROID_HISTORY)
+ AC_SUBST(MOZ_ANDROID_BEAM)
 diff --git a/dom/media/MediaManager.cpp b/dom/media/MediaManager.cpp
 index e6b87f3..217d7fe 100644
 --- a/dom/media/MediaManager.cpp
@@ -448,10 +450,10 @@ index 0394b35..da63a55 100644
  
  include $(topsrcdir)/config/rules.mk
 diff --git a/gfx/gl/GLLibraryEGL.cpp b/gfx/gl/GLLibraryEGL.cpp
-index 461dcd0..0607dd4 100644
+index bc3792b..22667d5 100644
 --- a/gfx/gl/GLLibraryEGL.cpp
 +++ b/gfx/gl/GLLibraryEGL.cpp
-@@ -146,6 +146,11 @@ GLLibraryEGL::EnsureInitialized()
+@@ -138,6 +138,11 @@ GLLibraryEGL::EnsureInitialized()
                  break;
  #endif
  
@@ -500,7 +502,7 @@ index 37900b2..9680117 100644
  
  nsresult
 diff --git a/gfx/thebes/gfxWindowsPlatform.cpp b/gfx/thebes/gfxWindowsPlatform.cpp
-index c5a52fa..4ca89d1 100644
+index 3a282c1..1ef8432 100644
 --- a/gfx/thebes/gfxWindowsPlatform.cpp
 +++ b/gfx/thebes/gfxWindowsPlatform.cpp
 @@ -485,6 +485,8 @@ gfxWindowsPlatform::UpdateRenderMode()
@@ -534,7 +536,7 @@ index c5a52fa..4ca89d1 100644
          decltype(DWriteCreateFactory)* createDWriteFactory = (decltype(DWriteCreateFactory)*)
              GetProcAddress(LoadLibraryW(L"dwrite.dll"), "DWriteCreateFactory");
  
-@@ -1837,6 +1841,7 @@ gfxWindowsPlatform::InitD3D11Devices()
+@@ -1841,6 +1845,7 @@ gfxWindowsPlatform::InitD3D11Devices()
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_11_0);
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_10_1);
    featureLevels.AppendElement(D3D_FEATURE_LEVEL_10_0);
@@ -594,6 +596,63 @@ index c3e1357..a36b754 100644
  }
  
  static bool
+diff --git a/mfbt/WindowsVersion.h b/mfbt/WindowsVersion.h
+index 4156f4f..dbacfec 100644
+--- a/mfbt/WindowsVersion.h
++++ b/mfbt/WindowsVersion.h
+@@ -84,44 +84,6 @@ IsWindowsBuildOrLater(uint32_t aBuild)
+   return false;
+ }
+ 
+-#if defined(_M_X64) || defined(_M_AMD64)
+-// We support only Win7 or later on Win64.
+-MOZ_ALWAYS_INLINE bool
+-IsXPSP3OrLater()
+-{
+-  return true;
+-}
+-
+-MOZ_ALWAYS_INLINE bool
+-IsWin2003OrLater()
+-{
+-  return true;
+-}
+-
+-MOZ_ALWAYS_INLINE bool
+-IsWin2003SP2OrLater()
+-{
+-  return true;
+-}
+-
+-MOZ_ALWAYS_INLINE bool
+-IsVistaOrLater()
+-{
+-  return true;
+-}
+-
+-MOZ_ALWAYS_INLINE bool
+-IsVistaSP1OrLater()
+-{
+-  return true;
+-}
+-
+-MOZ_ALWAYS_INLINE bool
+-IsWin7OrLater()
+-{
+-  return true;
+-}
+-#else
+ MOZ_ALWAYS_INLINE bool
+ IsXPSP3OrLater()
+ {
+@@ -157,7 +119,6 @@ IsWin7OrLater()
+ {
+   return IsWindowsVersionOrLater(0x06010000ul);
+ }
+-#endif
+ 
+ MOZ_ALWAYS_INLINE bool
+ IsWin7SP1OrLater()
 diff --git a/mozglue/build/WindowsDllBlocklist.cpp b/mozglue/build/WindowsDllBlocklist.cpp
 index 0dd4b83..3580671 100644
 --- a/mozglue/build/WindowsDllBlocklist.cpp
@@ -629,10 +688,10 @@ index 9778ce0..1e2735a 100644
              ; Nothing initialized so no need to call OnEndCommon
              Quit
 diff --git a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
-index 24b4f62..9094e17 100644
+index cef8be0..d451a7c 100644
 --- a/toolkit/xre/nsAppRunner.cpp
 +++ b/toolkit/xre/nsAppRunner.cpp
-@@ -2788,7 +2788,9 @@ XREMain::XRE_mainInit(bool* aExitFlag)
+@@ -2784,7 +2784,9 @@ XREMain::XRE_mainInit(bool* aExitFlag)
      // dwrite library and create a factory as early as possible so that the
      // FntCache service is ready by the time it's needed.
  
@@ -1902,6 +1961,141 @@ index 8408632..ee11a56 100644
    }
  
    if (!move) {
+diff --git a/memory/mozjemalloc/jemalloc.c b/memory/mozjemalloc/jemalloc.c
+index acf9d41..5e3a5a7 100644
+--- a/memory/mozjemalloc/jemalloc.c
++++ b/memory/mozjemalloc/jemalloc.c
+@@ -205,7 +205,8 @@
+ #include <string.h>
+ 
+ #ifdef MOZ_MEMORY_WINDOWS
+-
++#define _CRT_SPINCOUNT 5000
++#define __crtInitCritSecAndSpinCount InitializeCriticalSectionAndSpinCount
+ #include <io.h>
+ #include <windows.h>
+ #include <intrin.h>
+@@ -594,8 +595,8 @@ void *_mmap(void *addr, size_t length, int prot, int flags,
+  * issues in some cases.
+  */
+ #if defined(MOZ_MEMORY_WINDOWS)
+-#define malloc_mutex_t SRWLOCK
+-#define malloc_spinlock_t SRWLOCK
++#define malloc_mutex_t CRITICAL_SECTION
++#define malloc_spinlock_t CRITICAL_SECTION
+ #elif defined(MOZ_MEMORY_DARWIN)
+ typedef struct {
+ 	OSSpinLock	lock;
+@@ -1565,7 +1566,9 @@ static bool
+ malloc_mutex_init(malloc_mutex_t *mutex)
+ {
+ #if defined(MOZ_MEMORY_WINDOWS)
+-	InitializeSRWLock(mutex);
++//	InitializeSRWLock(mutex);
++	if (! __crtInitCritSecAndSpinCount(mutex, _CRT_SPINCOUNT))
++		return (true);
+ #elif defined(MOZ_MEMORY_DARWIN)
+ 	mutex->lock = OS_SPINLOCK_INIT;
+ #elif defined(MOZ_MEMORY_LINUX) && !defined(MOZ_MEMORY_ANDROID)
+@@ -1594,7 +1597,8 @@ malloc_mutex_lock(malloc_mutex_t *mutex)
+ {
+ 
+ #if defined(MOZ_MEMORY_WINDOWS)
+-	AcquireSRWLockExclusive(mutex);
++//	AcquireSRWLockExclusive(mutex);
++	EnterCriticalSection(mutex);
+ #elif defined(MOZ_MEMORY_DARWIN)
+ 	OSSpinLockLock(&mutex->lock);
+ #elif defined(MOZ_MEMORY)
+@@ -1609,7 +1613,8 @@ malloc_mutex_unlock(malloc_mutex_t *mutex)
+ {
+ 
+ #if defined(MOZ_MEMORY_WINDOWS)
+-	ReleaseSRWLockExclusive(mutex);
++//	ReleaseSRWLockExclusive(mutex);
++	LeaveCriticalSection(mutex);
+ #elif defined(MOZ_MEMORY_DARWIN)
+ 	OSSpinLockUnlock(&mutex->lock);
+ #elif defined(MOZ_MEMORY)
+@@ -1623,7 +1628,9 @@ static bool
+ malloc_spin_init(malloc_spinlock_t *lock)
+ {
+ #if defined(MOZ_MEMORY_WINDOWS)
+-	InitializeSRWLock(lock);
++//	InitializeSRWLock(lock);
++	if (! __crtInitCritSecAndSpinCount(lock, _CRT_SPINCOUNT))
++		return (true);
+ #elif defined(MOZ_MEMORY_DARWIN)
+ 	lock->lock = OS_SPINLOCK_INIT;
+ #elif defined(MOZ_MEMORY_LINUX) && !defined(MOZ_MEMORY_ANDROID)
+@@ -1650,7 +1657,8 @@ malloc_spin_lock(malloc_spinlock_t *lock)
+ {
+ 
+ #if defined(MOZ_MEMORY_WINDOWS)
+-	AcquireSRWLockExclusive(lock);
++//	AcquireSRWLockExclusive(lock);
++	EnterCriticalSection(lock);
+ #elif defined(MOZ_MEMORY_DARWIN)
+ 	OSSpinLockLock(&lock->lock);
+ #elif defined(MOZ_MEMORY)
+@@ -1664,7 +1672,8 @@ static inline void
+ malloc_spin_unlock(malloc_spinlock_t *lock)
+ {
+ #if defined(MOZ_MEMORY_WINDOWS)
+-	ReleaseSRWLockExclusive(lock);
++//	ReleaseSRWLockExclusive(lock);
++	LeaveCriticalSection(lock);
+ #elif defined(MOZ_MEMORY_DARWIN)
+ 	OSSpinLockUnlock(&lock->lock);
+ #elif defined(MOZ_MEMORY)
+diff --git a/gfx/cairo/cairo/src/cairo-mutex-impl-private.h b/gfx/cairo/cairo/src/cairo-mutex-impl-private.h
+index 6c67f6e..25223f3 100644
+--- a/gfx/cairo/cairo/src/cairo-mutex-impl-private.h
++++ b/gfx/cairo/cairo/src/cairo-mutex-impl-private.h
+@@ -36,7 +36,6 @@
+  *	Carl D. Worth <cworth@cworth.org>
+  *	Mathias Hasselmann <mathias.hasselmann@gmx.de>
+  *	Behdad Esfahbod <behdad@behdad.org>
+- *  Mark Straver <moonchild@palemoon.org>
+  */
+ 
+ #ifndef CAIRO_MUTEX_IMPL_PRIVATE_H
+@@ -179,24 +178,24 @@
+ #elif defined(_WIN32) /******************************************************/
+ 
+ #define WIN32_LEAN_AND_MEAN
+-/* We require Windows Vista features */
+-#if !defined(WINVER) || (WINVER < 0x0600)
+-# define WINVER 0x0600
++/* We require Windows 2000 features such as ETO_PDY */
++#if !defined(WINVER) || (WINVER < 0x0500)
++# define WINVER 0x0500
+ #endif
+-#if !defined(_WIN32_WINNT) || (_WIN32_WINNT < 0x0600)
+-# define _WIN32_WINNT 0x0600
++#if !defined(_WIN32_WINNT) || (_WIN32_WINNT < 0x0500)
++# define _WIN32_WINNT 0x0500
+ #endif
+ 
+ # include <windows.h>
+ 
+-  typedef SRWLOCK cairo_mutex_impl_t;
++  typedef CRITICAL_SECTION cairo_mutex_impl_t;
+ 
+ # define CAIRO_MUTEX_IMPL_WIN32 1
+-# define CAIRO_MUTEX_IMPL_LOCK(mutex) AcquireSRWLockExclusive (&(mutex))
+-# define CAIRO_MUTEX_IMPL_UNLOCK(mutex) ReleaseSRWLockExclusive (&(mutex))
+-# define CAIRO_MUTEX_IMPL_INIT(mutex) InitializeSRWLock (&(mutex))
+-# define CAIRO_MUTEX_IMPL_FINI(mutex) CAIRO_MUTEX_IMPL_NOOP
+-# define CAIRO_MUTEX_IMPL_NIL_INITIALIZER SRWLOCK_INIT
++# define CAIRO_MUTEX_IMPL_LOCK(mutex) EnterCriticalSection (&(mutex))
++# define CAIRO_MUTEX_IMPL_UNLOCK(mutex) LeaveCriticalSection (&(mutex))
++# define CAIRO_MUTEX_IMPL_INIT(mutex) InitializeCriticalSection (&(mutex))
++# define CAIRO_MUTEX_IMPL_FINI(mutex) DeleteCriticalSection (&(mutex))
++# define CAIRO_MUTEX_IMPL_NIL_INITIALIZER { NULL, 0, 0, NULL, NULL, 0 }
+ 
+ #elif defined __OS2__ /******************************************************/
+ 
 -- 
 2.8.2.windows.1
 

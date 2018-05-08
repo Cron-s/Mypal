@@ -19044,14 +19044,13 @@ diff --git a/dom/media/platforms/PlatformDecoderModule.cpp b/dom/media/platforms
 index 07752cb..0b4eec4 100644
 --- a/dom/media/platforms/PlatformDecoderModule.cpp
 +++ b/dom/media/platforms/PlatformDecoderModule.cpp
-@@ -21,7 +21,6 @@
+@@ -21,6 +21,5 @@
  #ifdef MOZ_WIDGET_ANDROID
  #include "AndroidDecoderModule.h"
  #endif
 -#include "GMPDecoderModule.h"
  
  #include "mozilla/Preferences.h"
- #include "mozilla/WindowsVersion.h"
 @@ -46,7 +45,6 @@ bool PlatformDecoderModule::sGonkDecoderEnabled = false;
  bool PlatformDecoderModule::sAndroidMCDecoderEnabled = false;
  bool PlatformDecoderModule::sAndroidMCDecoderPreferred = false;

@@ -1,6 +1,6 @@
-From 97e452be101a546e1d6dfcee681daa815ce333fd Mon Sep 17 00:00:00 2001
-From: fedor <fedor@mail.ru>
-Date: Tue, 27 Mar 2018 03:13:30 +0300
+From c97c81b5f7b9effe729b34c014b8bffdf40df05e Mon Sep 17 00:00:00 2001
+From: Fedor <fedor@mail.ru>
+Date: Mon, 7 May 2018 22:09:43 +0300
 Subject: [PATCH] tele
 
 ---
@@ -52,6 +52,23 @@ Subject: [PATCH] tele
  extensions/auth/nsAuthGSSAPI.cpp                   |  11 -
  extensions/auth/nsAuthSSPI.cpp                     |  11 -
  extensions/auth/nsAuthSambaNTLM.cpp                |  11 -
+ intl/uconv/ucvja/nsJapaneseToUnicode.h             |   3 -
+ intl/uconv/ucvlatin/nsCP866ToUnicode.cpp           |   3 -
+ intl/uconv/ucvlatin/nsISO88595ToUnicode.cpp        |   3 -
+ intl/uconv/ucvlatin/nsKOI8RToUnicode.cpp           |   3 -
+ intl/uconv/ucvlatin/nsKOI8UToUnicode.cpp           |   3 -
+ intl/uconv/ucvlatin/nsMacArabicToUnicode.cpp       |   3 -
+ intl/uconv/ucvlatin/nsMacCEToUnicode.cpp           |   3 -
+ intl/uconv/ucvlatin/nsMacCroatianToUnicode.cpp     |   3 -
+ intl/uconv/ucvlatin/nsMacCyrillicToUnicode.cpp     |   3 -
+ intl/uconv/ucvlatin/nsMacDevanagariToUnicode.cpp   |   3 -
+ intl/uconv/ucvlatin/nsMacFarsiToUnicode.cpp        |   3 -
+ intl/uconv/ucvlatin/nsMacGreekToUnicode.cpp        |   3 -
+ intl/uconv/ucvlatin/nsMacGurmukhiToUnicode.cpp     |   3 -
+ intl/uconv/ucvlatin/nsMacHebrewToUnicode.cpp       |   3 -
+ intl/uconv/ucvlatin/nsMacIcelandicToUnicode.cpp    |   3 -
+ intl/uconv/ucvlatin/nsMacRomanianToUnicode.cpp     |   3 -
+ intl/uconv/ucvlatin/nsMacTurkishToUnicode.cpp      |   3 -
  js/public/GCAPI.h                                  |   8 -
  js/src/frontend/Parser.cpp                         |  15 -
  js/src/frontend/Parser.h                           |   2 -
@@ -155,7 +172,7 @@ Subject: [PATCH] tele
  xpcom/build/XPCOMInit.cpp                          |   3 -
  xpcom/build/nsXULAppAPI.h                          |   3 -
  xpcom/threads/HangMonitor.cpp                      | 312 -------
- 151 files changed, 118 insertions(+), 4587 deletions(-)
+ 168 files changed, 118 insertions(+), 4638 deletions(-)
  delete mode 100644 security/manager/boot/public/nsISecurityUITelemetry.idl
  delete mode 100644 security/manager/boot/src/RootCertificateTelemetryUtils.cpp
  delete mode 100644 security/manager/boot/src/RootCertificateTelemetryUtils.h
@@ -317,7 +334,7 @@ index d105d68..4ead113 100644
          do_QueryInterface(mLoadGroup);
        if (internalLoadGroup) {
 diff --git a/docshell/base/nsIDocShell.idl b/docshell/base/nsIDocShell.idl
-index 0059d20..df00216 100644
+index 8af4a3b..5d46cc5 100644
 --- a/docshell/base/nsIDocShell.idl
 +++ b/docshell/base/nsIDocShell.idl
 @@ -653,13 +653,6 @@ interface nsIDocShell : nsIDocShellTreeItem
@@ -368,7 +385,7 @@ index 560b442..cd02b40 100644
      nsCycleCollector_dispatchDeferredDeletion();
      if (this == sContentUnbinder) {
 diff --git a/dom/base/Navigator.cpp b/dom/base/Navigator.cpp
-index 9c8268c..f9c06fa 100644
+index 9decf68..f3003e9 100644
 --- a/dom/base/Navigator.cpp
 +++ b/dom/base/Navigator.cpp
 @@ -30,7 +30,6 @@
@@ -379,7 +396,7 @@ index 9c8268c..f9c06fa 100644
  #include "BatteryManager.h"
  #include "mozilla/dom/PowerManager.h"
  #include "mozilla/dom/WakeLock.h"
-@@ -580,8 +579,6 @@ Navigator::GetDoNotTrack(nsAString &aResult)
+@@ -579,8 +578,6 @@ Navigator::GetDoNotTrack(nsAString &aResult)
  bool
  Navigator::JavaEnabled(ErrorResult& aRv)
  {
@@ -410,7 +427,7 @@ index ccb913e..e174f91 100644
    // Warn once.
    nsCOMPtr<nsIDocument> doc = win->GetExtantDoc();
 diff --git a/dom/base/nsDocument.cpp b/dom/base/nsDocument.cpp
-index f2c839f..d525238 100644
+index 5d344b7..2324028 100644
 --- a/dom/base/nsDocument.cpp
 +++ b/dom/base/nsDocument.cpp
 @@ -22,7 +22,6 @@
@@ -639,7 +656,7 @@ index 76f8f3e..9c10f32 100644
    DoSetRange(nullptr, 0, nullptr, 0, nullptr);
  }
 diff --git a/dom/base/nsXMLHttpRequest.cpp b/dom/base/nsXMLHttpRequest.cpp
-index 4d2f892..6791868 100644
+index 2cd4760..7291266 100644
 --- a/dom/base/nsXMLHttpRequest.cpp
 +++ b/dom/base/nsXMLHttpRequest.cpp
 @@ -58,7 +58,6 @@
@@ -1161,10 +1178,10 @@ index 2d9b281..08acf3b 100644
  }
  
 diff --git a/dom/html/HTMLMediaElement.cpp b/dom/html/HTMLMediaElement.cpp
-index 21d50e9..b6ea30f 100644
+index d3b5408..6a6e48c 100644
 --- a/dom/html/HTMLMediaElement.cpp
 +++ b/dom/html/HTMLMediaElement.cpp
-@@ -82,7 +82,6 @@
+@@ -84,7 +84,6 @@
  #include "mozilla/dom/VideoTrackList.h"
  #include "mozilla/dom/TextTrack.h"
  #include "nsIContentPolicy.h"
@@ -1172,7 +1189,7 @@ index 21d50e9..b6ea30f 100644
  
  #include "ImageContainer.h"
  #include "nsRange.h"
-@@ -1224,9 +1223,6 @@ nsresult HTMLMediaElement::LoadResource()
+@@ -1229,9 +1228,6 @@ nsresult HTMLMediaElement::LoadResource()
      mMediaSource = source.forget();
      nsRefPtr<MediaResource> resource =
        MediaSourceDecoder::CreateResource(mMediaSource->GetPrincipal());
@@ -1182,7 +1199,7 @@ index 21d50e9..b6ea30f 100644
      return FinishDecoderSetup(decoder, resource, nullptr, nullptr);
    }
  
-@@ -2583,66 +2579,6 @@ nsresult HTMLMediaElement::BindToTree(nsIDocument* aDocument, nsIContent* aParen
+@@ -2589,66 +2585,6 @@ nsresult HTMLMediaElement::BindToTree(nsIDocument* aDocument, nsIContent* aParen
    return rv;
  }
  
@@ -1249,7 +1266,7 @@ index 21d50e9..b6ea30f 100644
  void HTMLMediaElement::UnbindFromTree(bool aDeep,
                                        bool aNullParent)
  {
-@@ -3837,17 +3773,6 @@ nsresult HTMLMediaElement::DispatchAsyncEvent(const nsAString& aName)
+@@ -3843,17 +3779,6 @@ nsresult HTMLMediaElement::DispatchAsyncEvent(const nsAString& aName)
      return NS_OK;
    }
  
@@ -1267,7 +1284,7 @@ index 21d50e9..b6ea30f 100644
    return NS_OK;
  }
  
-@@ -3937,9 +3862,6 @@ void HTMLMediaElement::SuspendOrResumeElement(bool aPauseElement, bool aSuspendE
+@@ -3943,9 +3868,6 @@ void HTMLMediaElement::SuspendOrResumeElement(bool aPauseElement, bool aSuspendE
    if (aPauseElement != mPausedForInactiveDocumentOrChannel) {
      mPausedForInactiveDocumentOrChannel = aPauseElement;
      if (aPauseElement) {
@@ -1343,10 +1360,10 @@ index e86b585..32940a2 100644
  
  } // namespace dom
 diff --git a/dom/ipc/ContentParent.cpp b/dom/ipc/ContentParent.cpp
-index 0fda11e..36eae74 100644
+index 99ef275..4c013c8 100644
 --- a/dom/ipc/ContentParent.cpp
 +++ b/dom/ipc/ContentParent.cpp
-@@ -71,7 +71,6 @@
+@@ -70,7 +70,6 @@
  #include "mozilla/ProcessHangMonitorIPC.h"
  #include "mozilla/Services.h"
  #include "mozilla/StaticPtr.h"
@@ -1354,7 +1371,7 @@ index 0fda11e..36eae74 100644
  #include "mozilla/unused.h"
  #include "nsAnonymousTemporaryFile.h"
  #include "nsAppRunner.h"
-@@ -1818,8 +1817,6 @@ ContentParent::ActorDestroy(ActorDestroyReason why)
+@@ -1817,8 +1816,6 @@ ContentParent::ActorDestroy(ActorDestroyReason why)
          props->SetPropertyAsUint64(NS_LITERAL_STRING("childID"), mChildID);
  
          if (AbnormalShutdown == why) {
@@ -2151,6 +2168,363 @@ index 7cbf128..f97640b 100644
      return NS_OK;
  }
  
+diff --git a/intl/uconv/ucvja/nsJapaneseToUnicode.h b/intl/uconv/ucvja/nsJapaneseToUnicode.h
+index 8e3f207..f6dbdf1 100644
+--- a/intl/uconv/ucvja/nsJapaneseToUnicode.h
++++ b/intl/uconv/ucvja/nsJapaneseToUnicode.h
+@@ -5,7 +5,6 @@
+ #ifndef nsShiftJISToUnicode_h__
+ #define nsShiftJISToUnicode_h__
+ #include "nsUCSupport.h"
+-#include "mozilla/Telemetry.h"
+ 
+ class nsShiftJISToUnicode : public nsBasicDecoderSupport
+ {
+@@ -83,8 +82,6 @@ public:
+         mGB2312Decoder = nullptr;
+         mEUCKRDecoder = nullptr;
+         mISO88597Decoder = nullptr;
+-        mozilla::Telemetry::Accumulate(
+-          mozilla::Telemetry::DECODER_INSTANTIATED_ISO2022JP, true);
+      }
+  virtual ~nsISO2022JPToUnicodeV2()
+      {
+diff --git a/intl/uconv/ucvlatin/nsCP866ToUnicode.cpp b/intl/uconv/ucvlatin/nsCP866ToUnicode.cpp
+index 4d4b899..4c2fbf2 100644
+--- a/intl/uconv/ucvlatin/nsCP866ToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsCP866ToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsCP866ToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsCP866ToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_utMappingTable[] = {
+ #include "cp866.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_IBM866, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                               aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsISO88595ToUnicode.cpp b/intl/uconv/ucvlatin/nsISO88595ToUnicode.cpp
+index 23395aa..dad691e 100644
+--- a/intl/uconv/ucvlatin/nsISO88595ToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsISO88595ToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsISO88595ToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsISO88595ToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_utMappingTable[] = {
+ #include "8859-5.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_ISO_8859_5, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                               aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsKOI8RToUnicode.cpp b/intl/uconv/ucvlatin/nsKOI8RToUnicode.cpp
+index 35f77ba..e85e895 100644
+--- a/intl/uconv/ucvlatin/nsKOI8RToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsKOI8RToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsKOI8RToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsKOI8RToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_utMappingTable[] = {
+ #include "koi8r.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_KOI8R, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                               aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsKOI8UToUnicode.cpp b/intl/uconv/ucvlatin/nsKOI8UToUnicode.cpp
+index c5d588a..74911d9 100644
+--- a/intl/uconv/ucvlatin/nsKOI8UToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsKOI8UToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsKOI8UToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsKOI8UToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_utMappingTable[] = {
+ #include "koi8u.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_KOI8U, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                               aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacArabicToUnicode.cpp b/intl/uconv/ucvlatin/nsMacArabicToUnicode.cpp
+index 1a9950d..198a36b 100644
+--- a/intl/uconv/ucvlatin/nsMacArabicToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacArabicToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacArabicToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacArabicToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+    static const uint16_t g_utMappingTable[] = {
+ #include "macarabic.ut"
+    };
+-
+-   Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACARABIC, true);
+    return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                                aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacCEToUnicode.cpp b/intl/uconv/ucvlatin/nsMacCEToUnicode.cpp
+index 458d0f5..a286758 100644
+--- a/intl/uconv/ucvlatin/nsMacCEToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacCEToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacCEToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacCEToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_MacCEMappingTable[] = {
+ #include "macce.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACCE, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_MacCEMappingTable,
+                             aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacCroatianToUnicode.cpp b/intl/uconv/ucvlatin/nsMacCroatianToUnicode.cpp
+index 9799ac9..4941be5 100644
+--- a/intl/uconv/ucvlatin/nsMacCroatianToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacCroatianToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacCroatianToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacCroatianToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_utMappingTable[] = {
+ #include "maccroat.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACCROATIAN, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                               aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacCyrillicToUnicode.cpp b/intl/uconv/ucvlatin/nsMacCyrillicToUnicode.cpp
+index edbf604..bbc914e 100644
+--- a/intl/uconv/ucvlatin/nsMacCyrillicToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacCyrillicToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacCyrillicToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacCyrillicToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_utMappingTable[] = {
+ #include "maccyril.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACCYRILLIC, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                               aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacDevanagariToUnicode.cpp b/intl/uconv/ucvlatin/nsMacDevanagariToUnicode.cpp
+index 3c1cae7..b185008 100644
+--- a/intl/uconv/ucvlatin/nsMacDevanagariToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacDevanagariToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacDevanagariToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacDevanagariToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+    static const uint16_t g_utMappingTable[] = {
+ #include "macdevanaga.ut"
+    };
+-
+-   Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACDEVANAGARI, true);
+    return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                                aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacFarsiToUnicode.cpp b/intl/uconv/ucvlatin/nsMacFarsiToUnicode.cpp
+index 1e7e291..000240e 100644
+--- a/intl/uconv/ucvlatin/nsMacFarsiToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacFarsiToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacFarsiToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacFarsiToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+    static const uint16_t g_utMappingTable[] = {
+ #include "macfarsi.ut"
+    };
+-
+-   Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACFARSI, true);
+    return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                                aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacGreekToUnicode.cpp b/intl/uconv/ucvlatin/nsMacGreekToUnicode.cpp
+index 3f90811..3c84d13 100644
+--- a/intl/uconv/ucvlatin/nsMacGreekToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacGreekToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacGreekToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacGreekToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_MacGreekMappingTable[] = {
+ #include "macgreek.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACGREEK, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_MacGreekMappingTable,
+                             aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacGurmukhiToUnicode.cpp b/intl/uconv/ucvlatin/nsMacGurmukhiToUnicode.cpp
+index d6b3a88..49dd152 100644
+--- a/intl/uconv/ucvlatin/nsMacGurmukhiToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacGurmukhiToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacGurmukhiToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacGurmukhiToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+    static const uint16_t g_utMappingTable[] = {
+ #include "macgurmukhi.ut"
+    };
+-
+-   Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACGURMUKHI, true);
+    return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                                aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacHebrewToUnicode.cpp b/intl/uconv/ucvlatin/nsMacHebrewToUnicode.cpp
+index f19d82c..99b4b5e 100644
+--- a/intl/uconv/ucvlatin/nsMacHebrewToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacHebrewToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacHebrewToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacHebrewToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+    static const uint16_t g_utMappingTable[] = {
+ #include "machebrew.ut"
+    };
+-
+-   Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACHEBREW, true);
+    return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                                aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacIcelandicToUnicode.cpp b/intl/uconv/ucvlatin/nsMacIcelandicToUnicode.cpp
+index 00cff75..94ba59b 100644
+--- a/intl/uconv/ucvlatin/nsMacIcelandicToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacIcelandicToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacIcelandicToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacIcelandicToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_utMappingTable[] = {
+ #include "macicela.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACICELANDIC, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                               aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacRomanianToUnicode.cpp b/intl/uconv/ucvlatin/nsMacRomanianToUnicode.cpp
+index 96c24de..d1e41fc 100644
+--- a/intl/uconv/ucvlatin/nsMacRomanianToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacRomanianToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacRomanianToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacRomanianToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_utMappingTable[] = {
+ #include "macro.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACROMANIAN, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_utMappingTable,
+                               aOuter, aIID, aResult);
+ }
+diff --git a/intl/uconv/ucvlatin/nsMacTurkishToUnicode.cpp b/intl/uconv/ucvlatin/nsMacTurkishToUnicode.cpp
+index 86d2d1a..11278a8 100644
+--- a/intl/uconv/ucvlatin/nsMacTurkishToUnicode.cpp
++++ b/intl/uconv/ucvlatin/nsMacTurkishToUnicode.cpp
+@@ -5,7 +5,6 @@
+ 
+ #include "nsUCConstructors.h"
+ #include "nsMacTurkishToUnicode.h"
+-#include "mozilla/Telemetry.h"
+ 
+ using namespace mozilla;
+ 
+@@ -19,8 +18,6 @@ nsMacTurkishToUnicodeConstructor(nsISupports *aOuter, REFNSIID aIID,
+   static const uint16_t g_MacTurkishMappingTable[] = {
+ #include "macturki.ut"
+   };
+-
+-  Telemetry::Accumulate(Telemetry::DECODER_INSTANTIATED_MACTURKISH, true);
+   return CreateOneByteDecoder((uMappingTable*) &g_MacTurkishMappingTable,
+                             aOuter, aIID, aResult);
+ }
 diff --git a/js/public/GCAPI.h b/js/public/GCAPI.h
 index d3ae457..2721d67 100644
 --- a/js/public/GCAPI.h
@@ -5543,7 +5917,7 @@ index e142384..fc7022f 100644
    aHeadersOut.SetCapacity(mDecompressBufferUsed + 64);
  
 diff --git a/netwerk/protocol/http/nsHttpChannel.cpp b/netwerk/protocol/http/nsHttpChannel.cpp
-index f864a05..90718de 100644
+index aad5035..3248cb2 100644
 --- a/netwerk/protocol/http/nsHttpChannel.cpp
 +++ b/netwerk/protocol/http/nsHttpChannel.cpp
 @@ -71,7 +71,6 @@
